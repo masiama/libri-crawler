@@ -1,0 +1,28 @@
+package main
+
+import (
+	"context"
+	"libri/ent"
+	"log"
+	"os"
+
+	_ "github.com/lib/pq"
+)
+
+func connectDB() *ent.Client {
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		log.Fatal("DATABASE_URL is not set in environment")
+	}
+
+	client, err := ent.Open("postgres", dsn)
+	if err != nil {
+		log.Fatalf("failed opening connection to postgres: %v", err)
+	}
+
+	if err := client.Schema.Create(context.Background()); err != nil {
+		log.Fatalf("failed creating schema resources: %v", err)
+	}
+
+	return client
+}
