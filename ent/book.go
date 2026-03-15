@@ -24,7 +24,11 @@ type Book struct {
 	// Authors holds the value of the "authors" field.
 	Authors []string `json:"authors,omitempty"`
 	// URL holds the value of the "url" field.
-	URL          string `json:"url,omitempty"`
+	URL string `json:"url,omitempty"`
+	// SourcePriority holds the value of the "source_priority" field.
+	SourcePriority int `json:"source_priority,omitempty"`
+	// SourceName holds the value of the "source_name" field.
+	SourceName   string `json:"source_name,omitempty"`
 	selectValues sql.SelectValues
 }
 
@@ -35,9 +39,9 @@ func (*Book) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case book.FieldAuthors:
 			values[i] = new([]byte)
-		case book.FieldID:
+		case book.FieldID, book.FieldSourcePriority:
 			values[i] = new(sql.NullInt64)
-		case book.FieldIsbn, book.FieldTitle, book.FieldURL:
+		case book.FieldIsbn, book.FieldTitle, book.FieldURL, book.FieldSourceName:
 			values[i] = new(sql.NullString)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -86,6 +90,18 @@ func (_m *Book) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.URL = value.String
 			}
+		case book.FieldSourcePriority:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field source_priority", values[i])
+			} else if value.Valid {
+				_m.SourcePriority = int(value.Int64)
+			}
+		case book.FieldSourceName:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field source_name", values[i])
+			} else if value.Valid {
+				_m.SourceName = value.String
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -133,6 +149,12 @@ func (_m *Book) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("url=")
 	builder.WriteString(_m.URL)
+	builder.WriteString(", ")
+	builder.WriteString("source_priority=")
+	builder.WriteString(fmt.Sprintf("%v", _m.SourcePriority))
+	builder.WriteString(", ")
+	builder.WriteString("source_name=")
+	builder.WriteString(_m.SourceName)
 	builder.WriteByte(')')
 	return builder.String()
 }

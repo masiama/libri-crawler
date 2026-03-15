@@ -17,6 +17,8 @@ func (Book) Fields() []ent.Field {
 		field.String("title"),
 		field.Strings("authors"),
 		field.String("url"),
+		field.Int("source_priority").Default(100),
+		field.String("source_name").Optional(),
 	}
 }
 

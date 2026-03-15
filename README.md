@@ -35,5 +35,5 @@ go mod tidy
 **3. Execution**
 
 ```bash
-go run .
+make run
 ```

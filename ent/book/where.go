@@ -68,6 +68,16 @@ func URL(v string) predicate.Book {
 	return predicate.Book(sql.FieldEQ(FieldURL, v))
 }
 
+// SourcePriority applies equality check predicate on the "source_priority" field. It's identical to SourcePriorityEQ.
+func SourcePriority(v int) predicate.Book {
+	return predicate.Book(sql.FieldEQ(FieldSourcePriority, v))
+}
+
+// SourceName applies equality check predicate on the "source_name" field. It's identical to SourceNameEQ.
+func SourceName(v string) predicate.Book {
+	return predicate.Book(sql.FieldEQ(FieldSourceName, v))
+}
+
 // IsbnEQ applies the EQ predicate on the "isbn" field.
 func IsbnEQ(v string) predicate.Book {
 	return predicate.Book(sql.FieldEQ(FieldIsbn, v))
@@ -261,6 +271,121 @@ func URLEqualFold(v string) predicate.Book {
 // URLContainsFold applies the ContainsFold predicate on the "url" field.
 func URLContainsFold(v string) predicate.Book {
 	return predicate.Book(sql.FieldContainsFold(FieldURL, v))
+}
+
+// SourcePriorityEQ applies the EQ predicate on the "source_priority" field.
+func SourcePriorityEQ(v int) predicate.Book {
+	return predicate.Book(sql.FieldEQ(FieldSourcePriority, v))
+}
+
+// SourcePriorityNEQ applies the NEQ predicate on the "source_priority" field.
+func SourcePriorityNEQ(v int) predicate.Book {
+	return predicate.Book(sql.FieldNEQ(FieldSourcePriority, v))
+}
+
+// SourcePriorityIn applies the In predicate on the "source_priority" field.
+func SourcePriorityIn(vs ...int) predicate.Book {
+	return predicate.Book(sql.FieldIn(FieldSourcePriority, vs...))
+}
+
+// SourcePriorityNotIn applies the NotIn predicate on the "source_priority" field.
+func SourcePriorityNotIn(vs ...int) predicate.Book {
+	return predicate.Book(sql.FieldNotIn(FieldSourcePriority, vs...))
+}
+
+// SourcePriorityGT applies the GT predicate on the "source_priority" field.
+func SourcePriorityGT(v int) predicate.Book {
+	return predicate.Book(sql.FieldGT(FieldSourcePriority, v))
+}
+
+// SourcePriorityGTE applies the GTE predicate on the "source_priority" field.
+func SourcePriorityGTE(v int) predicate.Book {
+	return predicate.Book(sql.FieldGTE(FieldSourcePriority, v))
+}
+
+// SourcePriorityLT applies the LT predicate on the "source_priority" field.
+func SourcePriorityLT(v int) predicate.Book {
+	return predicate.Book(sql.FieldLT(FieldSourcePriority, v))
+}
+
+// SourcePriorityLTE applies the LTE predicate on the "source_priority" field.
+func SourcePriorityLTE(v int) predicate.Book {
+	return predicate.Book(sql.FieldLTE(FieldSourcePriority, v))
+}
+
+// SourceNameEQ applies the EQ predicate on the "source_name" field.
+func SourceNameEQ(v string) predicate.Book {
+	return predicate.Book(sql.FieldEQ(FieldSourceName, v))
+}
+
+// SourceNameNEQ applies the NEQ predicate on the "source_name" field.
+func SourceNameNEQ(v string) predicate.Book {
+	return predicate.Book(sql.FieldNEQ(FieldSourceName, v))
+}
+
+// SourceNameIn applies the In predicate on the "source_name" field.
+func SourceNameIn(vs ...string) predicate.Book {
+	return predicate.Book(sql.FieldIn(FieldSourceName, vs...))
+}
+
+// SourceNameNotIn applies the NotIn predicate on the "source_name" field.
+func SourceNameNotIn(vs ...string) predicate.Book {
+	return predicate.Book(sql.FieldNotIn(FieldSourceName, vs...))
+}
+
+// SourceNameGT applies the GT predicate on the "source_name" field.
+func SourceNameGT(v string) predicate.Book {
+	return predicate.Book(sql.FieldGT(FieldSourceName, v))
+}
+
+// SourceNameGTE applies the GTE predicate on the "source_name" field.
+func SourceNameGTE(v string) predicate.Book {
+	return predicate.Book(sql.FieldGTE(FieldSourceName, v))
+}
+
+// SourceNameLT applies the LT predicate on the "source_name" field.
+func SourceNameLT(v string) predicate.Book {
+	return predicate.Book(sql.FieldLT(FieldSourceName, v))
+}
+
+// SourceNameLTE applies the LTE predicate on the "source_name" field.
+func SourceNameLTE(v string) predicate.Book {
+	return predicate.Book(sql.FieldLTE(FieldSourceName, v))
+}
+
+// SourceNameContains applies the Contains predicate on the "source_name" field.
+func SourceNameContains(v string) predicate.Book {
+	return predicate.Book(sql.FieldContains(FieldSourceName, v))
+}
+
+// SourceNameHasPrefix applies the HasPrefix predicate on the "source_name" field.
+func SourceNameHasPrefix(v string) predicate.Book {
+	return predicate.Book(sql.FieldHasPrefix(FieldSourceName, v))
+}
+
+// SourceNameHasSuffix applies the HasSuffix predicate on the "source_name" field.
+func SourceNameHasSuffix(v string) predicate.Book {
+	return predicate.Book(sql.FieldHasSuffix(FieldSourceName, v))
+}
+
+// SourceNameIsNil applies the IsNil predicate on the "source_name" field.
+func SourceNameIsNil() predicate.Book {
+	return predicate.Book(sql.FieldIsNull(FieldSourceName))
+}
+
+// SourceNameNotNil applies the NotNil predicate on the "source_name" field.
+func SourceNameNotNil() predicate.Book {
+	return predicate.Book(sql.FieldNotNull(FieldSourceName))
+}
+
+// SourceNameEqualFold applies the EqualFold predicate on the "source_name" field.
+func SourceNameEqualFold(v string) predicate.Book {
+	return predicate.Book(sql.FieldEqualFold(FieldSourceName, v))
+}
+
+// SourceNameContainsFold applies the ContainsFold predicate on the "source_name" field.
+func SourceNameContainsFold(v string) predicate.Book {
+	return predicate.Book(sql.FieldContainsFold(FieldSourceName, v))
 }
 
 // And groups predicates with the AND operator between them.

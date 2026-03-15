@@ -15,6 +15,8 @@ var (
 		{Name: "title", Type: field.TypeString},
 		{Name: "authors", Type: field.TypeJSON},
 		{Name: "url", Type: field.TypeString},
+		{Name: "source_priority", Type: field.TypeInt, Default: 100},
+		{Name: "source_name", Type: field.TypeString, Nullable: true},
 	}
 	// BooksTable holds the schema information for the "books" table.
 	BooksTable = &schema.Table{
