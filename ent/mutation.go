@@ -29,18 +29,21 @@ const (
 // BookMutation represents an operation that mutates the Book nodes in the graph.
 type BookMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *int
-	isbn          *string
-	title         *string
-	authors       *[]string
-	appendauthors []string
-	url           *string
-	clearedFields map[string]struct{}
-	done          bool
-	oldValue      func(context.Context) (*Book, error)
-	predicates    []predicate.Book
+	op                 Op
+	typ                string
+	id                 *int
+	isbn               *string
+	title              *string
+	authors            *[]string
+	appendauthors      []string
+	url                *string
+	source_priority    *int
+	addsource_priority *int
+	source_name        *string
+	clearedFields      map[string]struct{}
+	done               bool
+	oldValue           func(context.Context) (*Book, error)
+	predicates         []predicate.Book
 }
 
 var _ ent.Mutation = (*BookMutation)(nil)
@@ -300,6 +303,111 @@ func (m *BookMutation) ResetURL() {
 	m.url = nil
 }
 
+// SetSourcePriority sets the "source_priority" field.
+func (m *BookMutation) SetSourcePriority(i int) {
+	m.source_priority = &i
+	m.addsource_priority = nil
+}
+
+// SourcePriority returns the value of the "source_priority" field in the mutation.
+func (m *BookMutation) SourcePriority() (r int, exists bool) {
+	v := m.source_priority
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourcePriority returns the old "source_priority" field's value of the Book entity.
+// If the Book object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BookMutation) OldSourcePriority(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourcePriority is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourcePriority requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourcePriority: %w", err)
+	}
+	return oldValue.SourcePriority, nil
+}
+
+// AddSourcePriority adds i to the "source_priority" field.
+func (m *BookMutation) AddSourcePriority(i int) {
+	if m.addsource_priority != nil {
+		*m.addsource_priority += i
+	} else {
+		m.addsource_priority = &i
+	}
+}
+
+// AddedSourcePriority returns the value that was added to the "source_priority" field in this mutation.
+func (m *BookMutation) AddedSourcePriority() (r int, exists bool) {
+	v := m.addsource_priority
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSourcePriority resets all changes to the "source_priority" field.
+func (m *BookMutation) ResetSourcePriority() {
+	m.source_priority = nil
+	m.addsource_priority = nil
+}
+
+// SetSourceName sets the "source_name" field.
+func (m *BookMutation) SetSourceName(s string) {
+	m.source_name = &s
+}
+
+// SourceName returns the value of the "source_name" field in the mutation.
+func (m *BookMutation) SourceName() (r string, exists bool) {
+	v := m.source_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceName returns the old "source_name" field's value of the Book entity.
+// If the Book object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BookMutation) OldSourceName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceName: %w", err)
+	}
+	return oldValue.SourceName, nil
+}
+
+// ClearSourceName clears the value of the "source_name" field.
+func (m *BookMutation) ClearSourceName() {
+	m.source_name = nil
+	m.clearedFields[book.FieldSourceName] = struct{}{}
+}
+
+// SourceNameCleared returns if the "source_name" field was cleared in this mutation.
+func (m *BookMutation) SourceNameCleared() bool {
+	_, ok := m.clearedFields[book.FieldSourceName]
+	return ok
+}
+
+// ResetSourceName resets all changes to the "source_name" field.
+func (m *BookMutation) ResetSourceName() {
+	m.source_name = nil
+	delete(m.clearedFields, book.FieldSourceName)
+}
+
 // Where appends a list predicates to the BookMutation builder.
 func (m *BookMutation) Where(ps ...predicate.Book) {
 	m.predicates = append(m.predicates, ps...)
@@ -334,7 +442,7 @@ func (m *BookMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *BookMutation) Fields() []string {
-	fields := make([]string, 0, 4)
+	fields := make([]string, 0, 6)
 	if m.isbn != nil {
 		fields = append(fields, book.FieldIsbn)
 	}
@@ -346,6 +454,12 @@ func (m *BookMutation) Fields() []string {
 	}
 	if m.url != nil {
 		fields = append(fields, book.FieldURL)
+	}
+	if m.source_priority != nil {
+		fields = append(fields, book.FieldSourcePriority)
+	}
+	if m.source_name != nil {
+		fields = append(fields, book.FieldSourceName)
 	}
 	return fields
 }
@@ -363,6 +477,10 @@ func (m *BookMutation) Field(name string) (ent.Value, bool) {
 		return m.Authors()
 	case book.FieldURL:
 		return m.URL()
+	case book.FieldSourcePriority:
+		return m.SourcePriority()
+	case book.FieldSourceName:
+		return m.SourceName()
 	}
 	return nil, false
 }
@@ -380,6 +498,10 @@ func (m *BookMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldAuthors(ctx)
 	case book.FieldURL:
 		return m.OldURL(ctx)
+	case book.FieldSourcePriority:
+		return m.OldSourcePriority(ctx)
+	case book.FieldSourceName:
+		return m.OldSourceName(ctx)
 	}
 	return nil, fmt.Errorf("unknown Book field %s", name)
 }
@@ -417,6 +539,20 @@ func (m *BookMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetURL(v)
 		return nil
+	case book.FieldSourcePriority:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourcePriority(v)
+		return nil
+	case book.FieldSourceName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceName(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Book field %s", name)
 }
@@ -424,13 +560,21 @@ func (m *BookMutation) SetField(name string, value ent.Value) error {
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
 func (m *BookMutation) AddedFields() []string {
-	return nil
+	var fields []string
+	if m.addsource_priority != nil {
+		fields = append(fields, book.FieldSourcePriority)
+	}
+	return fields
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
 func (m *BookMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case book.FieldSourcePriority:
+		return m.AddedSourcePriority()
+	}
 	return nil, false
 }
 
@@ -439,6 +583,13 @@ func (m *BookMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *BookMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case book.FieldSourcePriority:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSourcePriority(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Book numeric field %s", name)
 }
@@ -446,7 +597,11 @@ func (m *BookMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *BookMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(book.FieldSourceName) {
+		fields = append(fields, book.FieldSourceName)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -459,6 +614,11 @@ func (m *BookMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *BookMutation) ClearField(name string) error {
+	switch name {
+	case book.FieldSourceName:
+		m.ClearSourceName()
+		return nil
+	}
 	return fmt.Errorf("unknown Book nullable field %s", name)
 }
 
@@ -477,6 +637,12 @@ func (m *BookMutation) ResetField(name string) error {
 		return nil
 	case book.FieldURL:
 		m.ResetURL()
+		return nil
+	case book.FieldSourcePriority:
+		m.ResetSourcePriority()
+		return nil
+	case book.FieldSourceName:
+		m.ResetSourceName()
 		return nil
 	}
 	return fmt.Errorf("unknown Book field %s", name)

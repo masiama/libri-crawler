@@ -45,6 +45,34 @@ func (_c *BookCreate) SetURL(v string) *BookCreate {
 	return _c
 }
 
+// SetSourcePriority sets the "source_priority" field.
+func (_c *BookCreate) SetSourcePriority(v int) *BookCreate {
+	_c.mutation.SetSourcePriority(v)
+	return _c
+}
+
+// SetNillableSourcePriority sets the "source_priority" field if the given value is not nil.
+func (_c *BookCreate) SetNillableSourcePriority(v *int) *BookCreate {
+	if v != nil {
+		_c.SetSourcePriority(*v)
+	}
+	return _c
+}
+
+// SetSourceName sets the "source_name" field.
+func (_c *BookCreate) SetSourceName(v string) *BookCreate {
+	_c.mutation.SetSourceName(v)
+	return _c
+}
+
+// SetNillableSourceName sets the "source_name" field if the given value is not nil.
+func (_c *BookCreate) SetNillableSourceName(v *string) *BookCreate {
+	if v != nil {
+		_c.SetSourceName(*v)
+	}
+	return _c
+}
+
 // Mutation returns the BookMutation object of the builder.
 func (_c *BookCreate) Mutation() *BookMutation {
 	return _c.mutation
@@ -52,6 +80,7 @@ func (_c *BookCreate) Mutation() *BookMutation {
 
 // Save creates the Book in the database.
 func (_c *BookCreate) Save(ctx context.Context) (*Book, error) {
+	_c.defaults()
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -77,6 +106,14 @@ func (_c *BookCreate) ExecX(ctx context.Context) {
 	}
 }
 
+// defaults sets the default values of the builder before save.
+func (_c *BookCreate) defaults() {
+	if _, ok := _c.mutation.SourcePriority(); !ok {
+		v := book.DefaultSourcePriority
+		_c.mutation.SetSourcePriority(v)
+	}
+}
+
 // check runs all checks and user-defined validators on the builder.
 func (_c *BookCreate) check() error {
 	if _, ok := _c.mutation.Isbn(); !ok {
@@ -90,6 +127,9 @@ func (_c *BookCreate) check() error {
 	}
 	if _, ok := _c.mutation.URL(); !ok {
 		return &ValidationError{Name: "url", err: errors.New(`ent: missing required field "Book.url"`)}
+	}
+	if _, ok := _c.mutation.SourcePriority(); !ok {
+		return &ValidationError{Name: "source_priority", err: errors.New(`ent: missing required field "Book.source_priority"`)}
 	}
 	return nil
 }
@@ -133,6 +173,14 @@ func (_c *BookCreate) createSpec() (*Book, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.URL(); ok {
 		_spec.SetField(book.FieldURL, field.TypeString, value)
 		_node.URL = value
+	}
+	if value, ok := _c.mutation.SourcePriority(); ok {
+		_spec.SetField(book.FieldSourcePriority, field.TypeInt, value)
+		_node.SourcePriority = value
+	}
+	if value, ok := _c.mutation.SourceName(); ok {
+		_spec.SetField(book.FieldSourceName, field.TypeString, value)
+		_node.SourceName = value
 	}
 	return _node, _spec
 }
@@ -234,6 +282,42 @@ func (u *BookUpsert) UpdateURL() *BookUpsert {
 	return u
 }
 
+// SetSourcePriority sets the "source_priority" field.
+func (u *BookUpsert) SetSourcePriority(v int) *BookUpsert {
+	u.Set(book.FieldSourcePriority, v)
+	return u
+}
+
+// UpdateSourcePriority sets the "source_priority" field to the value that was provided on create.
+func (u *BookUpsert) UpdateSourcePriority() *BookUpsert {
+	u.SetExcluded(book.FieldSourcePriority)
+	return u
+}
+
+// AddSourcePriority adds v to the "source_priority" field.
+func (u *BookUpsert) AddSourcePriority(v int) *BookUpsert {
+	u.Add(book.FieldSourcePriority, v)
+	return u
+}
+
+// SetSourceName sets the "source_name" field.
+func (u *BookUpsert) SetSourceName(v string) *BookUpsert {
+	u.Set(book.FieldSourceName, v)
+	return u
+}
+
+// UpdateSourceName sets the "source_name" field to the value that was provided on create.
+func (u *BookUpsert) UpdateSourceName() *BookUpsert {
+	u.SetExcluded(book.FieldSourceName)
+	return u
+}
+
+// ClearSourceName clears the value of the "source_name" field.
+func (u *BookUpsert) ClearSourceName() *BookUpsert {
+	u.SetNull(book.FieldSourceName)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create.
 // Using this option is equivalent to using:
 //
@@ -330,6 +414,48 @@ func (u *BookUpsertOne) UpdateURL() *BookUpsertOne {
 	})
 }
 
+// SetSourcePriority sets the "source_priority" field.
+func (u *BookUpsertOne) SetSourcePriority(v int) *BookUpsertOne {
+	return u.Update(func(s *BookUpsert) {
+		s.SetSourcePriority(v)
+	})
+}
+
+// AddSourcePriority adds v to the "source_priority" field.
+func (u *BookUpsertOne) AddSourcePriority(v int) *BookUpsertOne {
+	return u.Update(func(s *BookUpsert) {
+		s.AddSourcePriority(v)
+	})
+}
+
+// UpdateSourcePriority sets the "source_priority" field to the value that was provided on create.
+func (u *BookUpsertOne) UpdateSourcePriority() *BookUpsertOne {
+	return u.Update(func(s *BookUpsert) {
+		s.UpdateSourcePriority()
+	})
+}
+
+// SetSourceName sets the "source_name" field.
+func (u *BookUpsertOne) SetSourceName(v string) *BookUpsertOne {
+	return u.Update(func(s *BookUpsert) {
+		s.SetSourceName(v)
+	})
+}
+
+// UpdateSourceName sets the "source_name" field to the value that was provided on create.
+func (u *BookUpsertOne) UpdateSourceName() *BookUpsertOne {
+	return u.Update(func(s *BookUpsert) {
+		s.UpdateSourceName()
+	})
+}
+
+// ClearSourceName clears the value of the "source_name" field.
+func (u *BookUpsertOne) ClearSourceName() *BookUpsertOne {
+	return u.Update(func(s *BookUpsert) {
+		s.ClearSourceName()
+	})
+}
+
 // Exec executes the query.
 func (u *BookUpsertOne) Exec(ctx context.Context) error {
 	if len(u.create.conflict) == 0 {
@@ -382,6 +508,7 @@ func (_c *BookCreateBulk) Save(ctx context.Context) ([]*Book, error) {
 	for i := range _c.builders {
 		func(i int, root context.Context) {
 			builder := _c.builders[i]
+			builder.defaults()
 			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
 				mutation, ok := m.(*BookMutation)
 				if !ok {
@@ -586,6 +713,48 @@ func (u *BookUpsertBulk) SetURL(v string) *BookUpsertBulk {
 func (u *BookUpsertBulk) UpdateURL() *BookUpsertBulk {
 	return u.Update(func(s *BookUpsert) {
 		s.UpdateURL()
+	})
+}
+
+// SetSourcePriority sets the "source_priority" field.
+func (u *BookUpsertBulk) SetSourcePriority(v int) *BookUpsertBulk {
+	return u.Update(func(s *BookUpsert) {
+		s.SetSourcePriority(v)
+	})
+}
+
+// AddSourcePriority adds v to the "source_priority" field.
+func (u *BookUpsertBulk) AddSourcePriority(v int) *BookUpsertBulk {
+	return u.Update(func(s *BookUpsert) {
+		s.AddSourcePriority(v)
+	})
+}
+
+// UpdateSourcePriority sets the "source_priority" field to the value that was provided on create.
+func (u *BookUpsertBulk) UpdateSourcePriority() *BookUpsertBulk {
+	return u.Update(func(s *BookUpsert) {
+		s.UpdateSourcePriority()
+	})
+}
+
+// SetSourceName sets the "source_name" field.
+func (u *BookUpsertBulk) SetSourceName(v string) *BookUpsertBulk {
+	return u.Update(func(s *BookUpsert) {
+		s.SetSourceName(v)
+	})
+}
+
+// UpdateSourceName sets the "source_name" field to the value that was provided on create.
+func (u *BookUpsertBulk) UpdateSourceName() *BookUpsertBulk {
+	return u.Update(func(s *BookUpsert) {
+		s.UpdateSourceName()
+	})
+}
+
+// ClearSourceName clears the value of the "source_name" field.
+func (u *BookUpsertBulk) ClearSourceName() *BookUpsertBulk {
+	return u.Update(func(s *BookUpsert) {
+		s.ClearSourceName()
 	})
 }
 

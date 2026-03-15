@@ -82,6 +82,47 @@ func (_u *BookUpdate) SetNillableURL(v *string) *BookUpdate {
 	return _u
 }
 
+// SetSourcePriority sets the "source_priority" field.
+func (_u *BookUpdate) SetSourcePriority(v int) *BookUpdate {
+	_u.mutation.ResetSourcePriority()
+	_u.mutation.SetSourcePriority(v)
+	return _u
+}
+
+// SetNillableSourcePriority sets the "source_priority" field if the given value is not nil.
+func (_u *BookUpdate) SetNillableSourcePriority(v *int) *BookUpdate {
+	if v != nil {
+		_u.SetSourcePriority(*v)
+	}
+	return _u
+}
+
+// AddSourcePriority adds value to the "source_priority" field.
+func (_u *BookUpdate) AddSourcePriority(v int) *BookUpdate {
+	_u.mutation.AddSourcePriority(v)
+	return _u
+}
+
+// SetSourceName sets the "source_name" field.
+func (_u *BookUpdate) SetSourceName(v string) *BookUpdate {
+	_u.mutation.SetSourceName(v)
+	return _u
+}
+
+// SetNillableSourceName sets the "source_name" field if the given value is not nil.
+func (_u *BookUpdate) SetNillableSourceName(v *string) *BookUpdate {
+	if v != nil {
+		_u.SetSourceName(*v)
+	}
+	return _u
+}
+
+// ClearSourceName clears the value of the "source_name" field.
+func (_u *BookUpdate) ClearSourceName() *BookUpdate {
+	_u.mutation.ClearSourceName()
+	return _u
+}
+
 // Mutation returns the BookMutation object of the builder.
 func (_u *BookUpdate) Mutation() *BookMutation {
 	return _u.mutation
@@ -139,6 +180,18 @@ func (_u *BookUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.URL(); ok {
 		_spec.SetField(book.FieldURL, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SourcePriority(); ok {
+		_spec.SetField(book.FieldSourcePriority, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSourcePriority(); ok {
+		_spec.AddField(book.FieldSourcePriority, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.SourceName(); ok {
+		_spec.SetField(book.FieldSourceName, field.TypeString, value)
+	}
+	if _u.mutation.SourceNameCleared() {
+		_spec.ClearField(book.FieldSourceName, field.TypeString)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -211,6 +264,47 @@ func (_u *BookUpdateOne) SetNillableURL(v *string) *BookUpdateOne {
 	if v != nil {
 		_u.SetURL(*v)
 	}
+	return _u
+}
+
+// SetSourcePriority sets the "source_priority" field.
+func (_u *BookUpdateOne) SetSourcePriority(v int) *BookUpdateOne {
+	_u.mutation.ResetSourcePriority()
+	_u.mutation.SetSourcePriority(v)
+	return _u
+}
+
+// SetNillableSourcePriority sets the "source_priority" field if the given value is not nil.
+func (_u *BookUpdateOne) SetNillableSourcePriority(v *int) *BookUpdateOne {
+	if v != nil {
+		_u.SetSourcePriority(*v)
+	}
+	return _u
+}
+
+// AddSourcePriority adds value to the "source_priority" field.
+func (_u *BookUpdateOne) AddSourcePriority(v int) *BookUpdateOne {
+	_u.mutation.AddSourcePriority(v)
+	return _u
+}
+
+// SetSourceName sets the "source_name" field.
+func (_u *BookUpdateOne) SetSourceName(v string) *BookUpdateOne {
+	_u.mutation.SetSourceName(v)
+	return _u
+}
+
+// SetNillableSourceName sets the "source_name" field if the given value is not nil.
+func (_u *BookUpdateOne) SetNillableSourceName(v *string) *BookUpdateOne {
+	if v != nil {
+		_u.SetSourceName(*v)
+	}
+	return _u
+}
+
+// ClearSourceName clears the value of the "source_name" field.
+func (_u *BookUpdateOne) ClearSourceName() *BookUpdateOne {
+	_u.mutation.ClearSourceName()
 	return _u
 }
 
@@ -301,6 +395,18 @@ func (_u *BookUpdateOne) sqlSave(ctx context.Context) (_node *Book, err error) {
 	}
 	if value, ok := _u.mutation.URL(); ok {
 		_spec.SetField(book.FieldURL, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SourcePriority(); ok {
+		_spec.SetField(book.FieldSourcePriority, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSourcePriority(); ok {
+		_spec.AddField(book.FieldSourcePriority, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.SourceName(); ok {
+		_spec.SetField(book.FieldSourceName, field.TypeString, value)
+	}
+	if _u.mutation.SourceNameCleared() {
+		_spec.ClearField(book.FieldSourceName, field.TypeString)
 	}
 	_node = &Book{config: _u.config}
 	_spec.Assign = _node.assignValues

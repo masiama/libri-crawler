@@ -19,6 +19,10 @@ const (
 	FieldAuthors = "authors"
 	// FieldURL holds the string denoting the url field in the database.
 	FieldURL = "url"
+	// FieldSourcePriority holds the string denoting the source_priority field in the database.
+	FieldSourcePriority = "source_priority"
+	// FieldSourceName holds the string denoting the source_name field in the database.
+	FieldSourceName = "source_name"
 	// Table holds the table name of the book in the database.
 	Table = "books"
 )
@@ -30,6 +34,8 @@ var Columns = []string{
 	FieldTitle,
 	FieldAuthors,
 	FieldURL,
+	FieldSourcePriority,
+	FieldSourceName,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -41,6 +47,11 @@ func ValidColumn(column string) bool {
 	}
 	return false
 }
+
+var (
+	// DefaultSourcePriority holds the default value on creation for the "source_priority" field.
+	DefaultSourcePriority int
+)
 
 // OrderOption defines the ordering options for the Book queries.
 type OrderOption func(*sql.Selector)
@@ -63,4 +74,14 @@ func ByTitle(opts ...sql.OrderTermOption) OrderOption {
 // ByURL orders the results by the url field.
 func ByURL(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldURL, opts...).ToFunc()
+}
+
+// BySourcePriority orders the results by the source_priority field.
+func BySourcePriority(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSourcePriority, opts...).ToFunc()
+}
+
+// BySourceName orders the results by the source_name field.
+func BySourceName(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSourceName, opts...).ToFunc()
 }

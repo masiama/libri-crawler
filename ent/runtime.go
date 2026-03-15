@@ -2,8 +2,19 @@
 
 package ent
 
+import (
+	"libri/ent/book"
+	"libri/ent/schema"
+)
+
 // The init function reads all schema descriptors with runtime code
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	bookFields := schema.Book{}.Fields()
+	_ = bookFields
+	// bookDescSourcePriority is the schema descriptor for source_priority field.
+	bookDescSourcePriority := bookFields[4].Descriptor()
+	// book.DefaultSourcePriority holds the default value on creation for the source_priority field.
+	book.DefaultSourcePriority = bookDescSourcePriority.Default.(int)
 }

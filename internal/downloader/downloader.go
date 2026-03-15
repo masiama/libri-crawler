@@ -1,9 +1,11 @@
-package main
+package downloader
 
 import (
 	"context"
 	"fmt"
 	"net/http"
+
+	"libri/internal/scraper"
 )
 
 type Downloader struct {
@@ -11,14 +13,14 @@ type Downloader struct {
 	Store  Storage
 }
 
-func (d *Downloader) Download(ctx context.Context, book localBook) error {
+func (d *Downloader) Download(ctx context.Context, book scraper.ScrapedBook) error {
 	key := book.Isbn + ".jpg"
 
 	if d.Store.Exists(ctx, key) {
 		return nil
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", book.imageURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", book.ImageURL, nil)
 	if err != nil {
 		return err
 	}
