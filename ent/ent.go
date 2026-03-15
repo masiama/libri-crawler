@@ -6,7 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"libri/ent/book"
+	"libri-crawler/ent/book"
 	"reflect"
 	"sync"
 

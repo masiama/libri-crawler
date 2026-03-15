@@ -3,8 +3,8 @@
 package ent
 
 import (
-	"libri/ent/book"
-	"libri/ent/schema"
+	"libri-crawler/ent/book"
+	"libri-crawler/ent/schema"
 )
 
 // The init function reads all schema descriptors with runtime code

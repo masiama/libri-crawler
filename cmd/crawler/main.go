@@ -11,9 +11,9 @@ import (
 
 	"github.com/joho/godotenv"
 
-	libriDB "libri/internal/db"
-	libriDownloader "libri/internal/downloader"
-	libriScraper "libri/internal/scraper"
+	"libri-crawler/internal/db"
+	"libri-crawler/internal/downloader"
+	"libri-crawler/internal/scraper"
 )
 
 const (
@@ -25,13 +25,13 @@ func main() {
 	start := time.Now()
 	loadEnv()
 
-	dbClient := libriDB.ConnectDB()
+	dbClient := db.ConnectDB()
 	defer dbClient.Close()
 
 	httpClient := &http.Client{Timeout: 15 * time.Second}
-	store := libriDownloader.NewStorage()
-	scraper := &libriScraper.Scraper{Client: httpClient, DB: dbClient}
-	dl := &libriDownloader.Downloader{Store: store, Client: httpClient}
+	store := downloader.NewStorage()
+	s := &scraper.Scraper{Client: httpClient, DB: dbClient}
+	dl := &downloader.Downloader{Store: store, Client: httpClient}
 
 	var wg sync.WaitGroup
 	var activeTasks sync.WaitGroup
@@ -39,13 +39,13 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	tasksChan := make(chan libriScraper.Task, 10)
-	saveChan := make(chan libriScraper.ScrapedBook, 500)
-	imagesChan := make(chan libriScraper.ScrapedBook, 1000)
+	tasksChan := make(chan scraper.Task, 10)
+	saveChan := make(chan scraper.ScrapedBook, 500)
+	imagesChan := make(chan scraper.ScrapedBook, 1000)
 
 	wg.Go(func() {
 		for book := range saveChan {
-			scraper.SaveBook(ctx, book)
+			s.SaveBook(ctx, book)
 		}
 	})
 
@@ -60,7 +60,7 @@ func main() {
 	for range scraperWorkers {
 		wg.Go(func() {
 			for t := range tasksChan {
-				node, err := scraper.Fetch(ctx, t.URL)
+				node, err := s.Fetch(ctx, t.URL)
 				if err != nil {
 					continue
 				}
@@ -74,7 +74,7 @@ func main() {
 					}
 				}
 
-				go func(tasksToAdd []libriScraper.Task) {
+				go func(tasksToAdd []scraper.Task) {
 					for _, nt := range tasksToAdd {
 						activeTasks.Add(1)
 						tasksChan <- nt
@@ -87,9 +87,9 @@ func main() {
 	}
 
 	activeTasks.Add(1)
-	tasksChan <- libriScraper.Task{
+	tasksChan <- scraper.Task{
 		URL:     "https://kniga.lv/shop",
-		Handler: scraper.KnigaListingHandler,
+		Handler: s.KnigaListingHandler,
 	}
 
 	go func() {

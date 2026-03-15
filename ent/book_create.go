@@ -6,7 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"libri/ent/book"
+	"libri-crawler/ent/book"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"

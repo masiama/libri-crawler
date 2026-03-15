@@ -3,7 +3,7 @@
 package book
 
 import (
-	"libri/ent/predicate"
+	"libri-crawler/ent/predicate"
 
 	"entgo.io/ent/dialect/sql"
 )

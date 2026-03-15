@@ -2,8 +2,8 @@ package scraper
 
 import (
 	"context"
-	"libri/ent"
-	"libri/ent/book"
+	"libri-crawler/ent"
+	"libri-crawler/ent/book"
 	"net/http"
 
 	"entgo.io/ent/dialect/sql"
