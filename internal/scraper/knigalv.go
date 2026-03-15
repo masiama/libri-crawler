@@ -3,7 +3,7 @@ package scraper
 import (
 	"context"
 	"fmt"
-	"libri/ent"
+	"libri-crawler/ent"
 	"regexp"
 	"strconv"
 	"strings"

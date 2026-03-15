@@ -9,9 +9,9 @@ import (
 	"log"
 	"reflect"
 
-	"libri/ent/migrate"
+	"libri-crawler/ent/migrate"
 
-	"libri/ent/book"
+	"libri-crawler/ent/book"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"

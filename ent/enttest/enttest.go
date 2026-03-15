@@ -5,11 +5,11 @@ package enttest
 import (
 	"context"
 
-	"libri/ent"
+	"libri-crawler/ent"
 	// required by schema hooks.
-	_ "libri/ent/runtime"
+	_ "libri-crawler/ent/runtime"
 
-	"libri/ent/migrate"
+	"libri-crawler/ent/migrate"
 
 	"entgo.io/ent/dialect/sql/schema"
 )

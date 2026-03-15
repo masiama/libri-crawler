@@ -6,8 +6,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"libri/ent/book"
-	"libri/ent/predicate"
+	"libri-crawler/ent/book"
+	"libri-crawler/ent/predicate"
 	"sync"
 
 	"entgo.io/ent"

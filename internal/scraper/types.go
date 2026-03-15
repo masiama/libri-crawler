@@ -2,7 +2,7 @@ package scraper
 
 import (
 	"context"
-	"libri/ent"
+	"libri-crawler/ent"
 	"net/http"
 
 	"golang.org/x/net/html"

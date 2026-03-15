@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"libri/internal/scraper"
+	"libri-crawler/internal/scraper"
 )
 
 type Downloader struct {

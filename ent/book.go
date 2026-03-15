@@ -5,7 +5,7 @@ package ent
 import (
 	"encoding/json"
 	"fmt"
-	"libri/ent/book"
+	"libri-crawler/ent/book"
 	"strings"
 
 	"entgo.io/ent"

@@ -1,7 +1,7 @@
 package db
 
 import (
-	"libri/ent"
+	"libri-crawler/ent"
 	"log"
 	"os"
 

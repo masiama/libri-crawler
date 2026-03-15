@@ -5,7 +5,7 @@ package hook
 import (
 	"context"
 	"fmt"
-	"libri/ent"
+	"libri-crawler/ent"
 )
 
 // The BookFunc type is an adapter to allow the use of ordinary

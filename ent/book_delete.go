@@ -4,8 +4,8 @@ package ent
 
 import (
 	"context"
-	"libri/ent/book"
-	"libri/ent/predicate"
+	"libri-crawler/ent/book"
+	"libri-crawler/ent/predicate"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"

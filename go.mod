@@ -1,4 +1,4 @@
-module libri
+module libri-crawler
 
 go 1.26.1
 

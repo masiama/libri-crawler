@@ -5,8 +5,8 @@ package ent
 import (
 	"context"
 	"fmt"
-	"libri/ent/book"
-	"libri/ent/predicate"
+	"libri-crawler/ent/book"
+	"libri-crawler/ent/predicate"
 	"math"
 
 	"entgo.io/ent"
