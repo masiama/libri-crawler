@@ -13,8 +13,12 @@ type Downloader struct {
 	Store  Storage
 }
 
+func (d *Downloader) GetKey(book scraper.ScrapedBook) string {
+	return book.Isbn + ".jpg"
+}
+
 func (d *Downloader) Download(ctx context.Context, book scraper.ScrapedBook) error {
-	key := book.Isbn + ".jpg"
+	key := d.GetKey(book)
 
 	if d.Store.Exists(ctx, key) {
 		return nil

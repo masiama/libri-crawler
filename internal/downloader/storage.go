@@ -2,6 +2,7 @@ package downloader
 
 import (
 	"context"
+	"crypto/md5"
 	"fmt"
 	"io"
 	"log"
@@ -41,14 +42,30 @@ func (l *LocalStorage) getImagePath(key string) string {
 }
 
 func (l *LocalStorage) Save(ctx context.Context, key string, data io.Reader) error {
-	path := l.getImagePath(key)
-	f, err := os.Create(path)
+	dir, fullPath := l.getShardedPath(key)
+
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("failed to create directory %s: %w", dir, err)
+	}
+
+	f, err := os.Create(fullPath)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 	_, err = io.Copy(f, data)
 	return err
+}
+
+func (l *LocalStorage) getShardedPath(key string) (string, string) {
+	hash := fmt.Sprintf("%x", md5.Sum([]byte(key)))
+
+	shard1 := hash[:2]
+	shard2 := hash[2:4]
+
+	dir := filepath.Join(l.RootDir, shard1, shard2)
+	fullPath := filepath.Join(dir, key)
+	return dir, fullPath
 }
 
 func (l *LocalStorage) Exists(ctx context.Context, key string) bool {

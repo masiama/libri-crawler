@@ -13,6 +13,7 @@ This service is the data acquisition engine for the Libri ecosystem. It extracts
 ### Supported Sources
 
 - kniga.lv
+- mnogoknig.com
 - _More sources coming soon_
 
 ---
