@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -17,11 +18,15 @@ import (
 )
 
 const (
-	scraperWorkers    = 3
-	downloaderWorkers = 20
+	scraperWorkers    = 25
+	downloaderWorkers = 100
+	saverWorkers      = 10
 )
 
 func main() {
+	var scrapersRunning int32 = scraperWorkers
+	var totalProcessed int64
+
 	start := time.Now()
 	loadEnv()
 
@@ -30,7 +35,9 @@ func main() {
 
 	httpClient := &http.Client{Timeout: 15 * time.Second}
 	store := downloader.NewStorage()
-	s := &scraper.Scraper{Client: httpClient, DB: dbClient}
+	cache := &scraper.URLCache{Items: make(map[string]struct{}, 100000)}
+
+	s := &scraper.Scraper{Client: httpClient, DB: dbClient, Cache: cache}
 	dl := &downloader.Downloader{Store: store, Client: httpClient}
 
 	var wg sync.WaitGroup
@@ -39,15 +46,54 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	tasksChan := make(chan scraper.Task, 10)
-	saveChan := make(chan scraper.ScrapedBook, 500)
-	imagesChan := make(chan scraper.ScrapedBook, 1000)
+	tasksChan := make(chan scraper.Task, 10_000)
+	saveChan := make(chan scraper.ScrapedBook, 20_000)
+	imagesChan := make(chan scraper.ScrapedBook, 50_000)
 
-	wg.Go(func() {
-		for book := range saveChan {
-			s.SaveBook(ctx, book)
+	go func() {
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			count := atomic.LoadInt64(&totalProcessed)
+			fmt.Printf("[%s] Status: %d books processed\n",
+				time.Now().Format("15:04:05"), count)
 		}
-	})
+	}()
+
+	for range saverWorkers {
+		wg.Go(func() {
+			var batch []scraper.ScrapedBook
+			ticker := time.NewTicker(time.Second)
+			defer ticker.Stop()
+
+			for {
+				select {
+				case b, ok := <-saveChan:
+					if !ok {
+						if len(batch) > 0 {
+							s.SaveBatch(ctx, batch)
+						}
+						return
+					}
+					batch = append(batch, b)
+					if len(batch) >= 100 {
+						s.SaveBatch(ctx, batch)
+						batch = nil
+					}
+				case <-ticker.C:
+					if len(batch) > 0 {
+						s.SaveBatch(ctx, batch)
+						batch = nil
+					}
+				case <-ctx.Done():
+					if len(batch) > 0 {
+						s.SaveBatch(context.Background(), batch)
+					}
+					return
+				}
+			}
+		})
+	}
 
 	for range downloaderWorkers {
 		wg.Go(func() {
@@ -59,44 +105,68 @@ func main() {
 
 	for range scraperWorkers {
 		wg.Go(func() {
+			defer func() {
+				if atomic.AddInt32(&scrapersRunning, -1) == 0 {
+					close(saveChan)
+					close(imagesChan)
+				}
+			}()
+
 			for t := range tasksChan {
 				node, err := s.Fetch(ctx, t.URL)
 				if err != nil {
+					fmt.Printf("Failed to fetch %s: %v\n", t.URL, err)
+					activeTasks.Done()
 					continue
 				}
 
 				next, books, _ := t.Handler(ctx, node)
 
-				if len(books) > 0 {
-					for _, b := range books {
-						saveChan <- b
-						imagesChan <- b
-					}
+				atomic.AddInt64(&totalProcessed, int64(len(books)))
+
+				for _, b := range books {
+					saveChan <- b
+					imagesChan <- b
 				}
 
+				activeTasks.Add(1)
 				go func(tasksToAdd []scraper.Task) {
+					defer activeTasks.Done()
 					for _, nt := range tasksToAdd {
+						if s.Cache.Seen(nt.URL) {
+							continue
+						}
+
+						if nt.Type == scraper.TypeBook && s.BookExists(ctx, nt.URL) {
+							atomic.AddInt64(&totalProcessed, 1)
+							continue
+						}
+
 						activeTasks.Add(1)
 						tasksChan <- nt
 					}
-
-					activeTasks.Done()
 				}(next)
+
+				activeTasks.Done()
 			}
 		})
 	}
 
-	activeTasks.Add(1)
+	activeTasks.Add(2)
 	tasksChan <- scraper.Task{
 		URL:     "https://kniga.lv/shop",
+		Type:    scraper.TypeDiscovery,
 		Handler: s.KnigaListingHandler,
+	}
+	tasksChan <- scraper.Task{
+		URL:     "https://mnogoknig.com/ru/categories/1/knigi",
+		Type:    scraper.TypeDiscovery,
+		Handler: s.MnogoknigCategoryHandler,
 	}
 
 	go func() {
 		activeTasks.Wait()
 		close(tasksChan)
-		close(saveChan)
-		close(imagesChan)
 	}()
 
 	wg.Wait()

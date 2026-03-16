@@ -1,10 +1,15 @@
 package db
 
 import (
+	"database/sql"
 	"libri-crawler/ent"
 	"log"
 	"os"
+	"time"
 
+	"entgo.io/ent/dialect"
+	entsql "entgo.io/ent/dialect/sql"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "github.com/lib/pq"
 )
 
@@ -14,10 +19,16 @@ func ConnectDB() *ent.Client {
 		log.Fatal("DATABASE_URL is not set in environment")
 	}
 
-	client, err := ent.Open("postgres", dsn)
+	db, err := sql.Open("pgx", dsn)
 	if err != nil {
-		log.Fatalf("failed opening connection to postgres: %v", err)
+		log.Fatal(err)
 	}
 
-	return client
+	drv := entsql.OpenDB(dialect.Postgres, db)
+
+	db.SetMaxOpenConns(20)
+	db.SetMaxIdleConns(10)
+	db.SetConnMaxLifetime(time.Hour)
+
+	return ent.NewClient(ent.Driver(drv))
 }

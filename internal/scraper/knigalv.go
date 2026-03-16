@@ -32,6 +32,7 @@ func (s *Scraper) KnigaListingHandler(ctx context.Context, node *html.Node) ([]T
 			for i := 2; i <= lastPageNum; i++ {
 				nextTasks = append(nextTasks, Task{
 					URL:     fmt.Sprintf("https://kniga.lv/shop?page=%d", i),
+					Type:    TypeDiscovery,
 					Handler: s.KnigaListingHandler,
 				})
 			}
