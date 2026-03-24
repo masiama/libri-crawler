@@ -3,9 +3,8 @@ package downloader
 import (
 	"context"
 	"fmt"
-	"net/http"
-
 	"libri-crawler/internal/scraper"
+	"net/http"
 )
 
 type Downloader struct {
@@ -13,14 +12,8 @@ type Downloader struct {
 	Store  Storage
 }
 
-func (d *Downloader) GetKey(book scraper.ScrapedBook) string {
-	return book.ISBN + ".jpg"
-}
-
 func (d *Downloader) Download(ctx context.Context, book scraper.ScrapedBook) error {
-	key := d.GetKey(book)
-
-	if d.Store.Exists(ctx, key) {
+	if d.Store.Exists(ctx, book) {
 		return nil
 	}
 
@@ -39,5 +32,5 @@ func (d *Downloader) Download(ctx context.Context, book scraper.ScrapedBook) err
 		return fmt.Errorf("bad status: %s", resp.Status)
 	}
 
-	return d.Store.Save(ctx, key, resp.Body)
+	return d.Store.Save(ctx, book, resp.Body)
 }

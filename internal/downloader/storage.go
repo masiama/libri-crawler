@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
+	"libri-crawler/internal/scraper"
 	"log"
 	"os"
 	"path/filepath"
@@ -16,8 +17,8 @@ import (
 )
 
 type Storage interface {
-	Save(ctx context.Context, key string, data io.Reader) error
-	Exists(ctx context.Context, key string) bool
+	Save(ctx context.Context, book scraper.ScrapedBook, data io.Reader) error
+	Exists(ctx context.Context, book scraper.ScrapedBook) bool
 }
 
 func NewStorage() Storage {
@@ -25,9 +26,9 @@ func NewStorage() Storage {
 		return connectBucket()
 	}
 
-	dir := os.Getenv("IMAGE_DIR")
+	dir := os.Getenv("IMAGES_DIR")
 	if dir == "" {
-		dir = "./images"
+		dir = "../images"
 	}
 	os.MkdirAll(dir, os.ModePerm)
 	return &LocalStorage{RootDir: dir}
@@ -37,12 +38,8 @@ type LocalStorage struct {
 	RootDir string
 }
 
-func (l *LocalStorage) getImagePath(key string) string {
-	return filepath.Join(l.RootDir, key)
-}
-
-func (l *LocalStorage) Save(ctx context.Context, key string, data io.Reader) error {
-	dir, fullPath := l.getShardedPath(key)
+func (l *LocalStorage) Save(ctx context.Context, book scraper.ScrapedBook, data io.Reader) error {
+	dir, fullPath := l.getShardedPath(book)
 
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("failed to create directory %s: %w", dir, err)
@@ -57,20 +54,21 @@ func (l *LocalStorage) Save(ctx context.Context, key string, data io.Reader) err
 	return err
 }
 
-func (l *LocalStorage) getShardedPath(key string) (string, string) {
-	hash := fmt.Sprintf("%x", md5.Sum([]byte(key)))
+func (l *LocalStorage) Exists(ctx context.Context, book scraper.ScrapedBook) bool {
+	_, path := l.getShardedPath(book)
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+func (l *LocalStorage) getShardedPath(book scraper.ScrapedBook) (string, string) {
+	hash := fmt.Sprintf("%x", md5.Sum([]byte(book.ISBN)))
 
 	shard1 := hash[:2]
 	shard2 := hash[2:4]
 
 	dir := filepath.Join(l.RootDir, shard1, shard2)
-	fullPath := filepath.Join(dir, key)
+	fullPath := filepath.Join(dir, getFileName(book))
 	return dir, fullPath
-}
-
-func (l *LocalStorage) Exists(ctx context.Context, key string) bool {
-	_, err := os.Stat(l.getImagePath(key))
-	return err == nil
 }
 
 type S3Service struct {
@@ -78,10 +76,10 @@ type S3Service struct {
 	bucketName string
 }
 
-func (s *S3Service) Save(ctx context.Context, key string, data io.Reader) error {
+func (s *S3Service) Save(ctx context.Context, book scraper.ScrapedBook, data io.Reader) error {
 	input := &s3.PutObjectInput{
 		Bucket:      aws.String(s.bucketName),
-		Key:         aws.String(key),
+		Key:         aws.String(getFileName(book)),
 		Body:        data,
 		ContentType: aws.String("image/jpeg"),
 	}
@@ -89,10 +87,10 @@ func (s *S3Service) Save(ctx context.Context, key string, data io.Reader) error 
 	return err
 }
 
-func (s *S3Service) Exists(ctx context.Context, key string) bool {
+func (s *S3Service) Exists(ctx context.Context, book scraper.ScrapedBook) bool {
 	_, err := s.client.HeadObject(ctx, &s3.HeadObjectInput{
 		Bucket: aws.String(s.bucketName),
-		Key:    aws.String(key),
+		Key:    aws.String(getFileName(book)),
 	})
 	return err == nil
 }
@@ -119,4 +117,8 @@ func connectBucket() *S3Service {
 	})
 
 	return &S3Service{client: client, bucketName: bucketName}
+}
+
+func getFileName(book scraper.ScrapedBook) string {
+	return book.ISBN + ".jpg"
 }
