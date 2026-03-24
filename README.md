@@ -5,9 +5,9 @@ This service is the data acquisition engine for the Libri ecosystem. It extracts
 ### Features
 
 - **Parallel Processing**: Separate worker pools scrape pages and download images simultaneously for high throughput.
-- **Flexible Storage**: Interface-driven design supports both local disk and S3-compatible (Cloudflare R2) storage.
+- **Flexible Storage**: Interface-driven design supports both local disk and S3-compatible (Cloudflare R2) storage. Local storage is the default.
 - **Manual Extraction**: Uses `net/http` and `htmlquery` (XPath) for precise, low-memory data mining.
-- **Data Integrity**: Ent ORM handles schema management with additional logic for ISBN validation.
+- **Data Integrity**: pgx handles database writes with upsert logic and ISBN validation. Schema migrations are managed by [libri-api](https://github.com/masiama/libri-api).
 - **Reliability**: Context-aware workers ensure timeouts and graceful shutdowns to prevent hanging processes.
 
 ### Supported Sources

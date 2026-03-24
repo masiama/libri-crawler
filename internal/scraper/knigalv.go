@@ -3,7 +3,6 @@ package scraper
 import (
 	"context"
 	"fmt"
-	"libri-crawler/ent"
 	"regexp"
 	"strconv"
 	"strings"
@@ -53,7 +52,7 @@ func processNode(n *html.Node) []ScrapedBook {
 	url := getMetaContent(n, "url")
 
 	authorNode, _ := htmlquery.Query(n, "//div[@class='product-author']")
-	var authors []string
+	authors := []string{}
 	if authorNode != nil {
 		for author := range strings.SplitSeq(htmlquery.InnerText(authorNode), ",") {
 			name := strings.TrimSpace(author)
@@ -70,15 +69,12 @@ func processNode(n *html.Node) []ScrapedBook {
 			continue
 		}
 		books = append(books, ScrapedBook{
-			Book: ent.Book{
-				Isbn:           isbn,
-				Title:          title,
-				URL:            url,
-				Authors:        authors,
-				SourceName:     "knigalv",
-				SourcePriority: PriorityKnigaLv,
-			},
-			ImageURL: image,
+			ISBN:       isbn,
+			Title:      title,
+			URL:        url,
+			Authors:    authors,
+			SourceName: SourceKnigaLv,
+			ImageURL:   image,
 		})
 	}
 

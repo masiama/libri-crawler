@@ -14,7 +14,7 @@ type Downloader struct {
 }
 
 func (d *Downloader) GetKey(book scraper.ScrapedBook) string {
-	return book.Isbn + ".jpg"
+	return book.ISBN + ".jpg"
 }
 
 func (d *Downloader) Download(ctx context.Context, book scraper.ScrapedBook) error {

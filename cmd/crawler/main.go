@@ -30,14 +30,14 @@ func main() {
 	start := time.Now()
 	loadEnv()
 
-	dbClient := db.ConnectDB()
-	defer dbClient.Close()
+	dbPool := db.ConnectDB()
+	defer dbPool.Close()
 
 	httpClient := &http.Client{Timeout: 15 * time.Second}
 	store := downloader.NewStorage()
 	cache := &scraper.URLCache{Items: make(map[string]struct{}, 100000)}
 
-	s := &scraper.Scraper{Client: httpClient, DB: dbClient, Cache: cache}
+	s := &scraper.Scraper{Client: httpClient, DB: dbPool, Cache: cache}
 	dl := &downloader.Downloader{Store: store, Client: httpClient}
 
 	var wg sync.WaitGroup

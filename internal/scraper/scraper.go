@@ -2,20 +2,13 @@ package scraper
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"libri-crawler/ent"
-	"libri-crawler/ent/book"
 	"net/http"
 
-	"entgo.io/ent/dialect/sql"
 	"github.com/antchfx/htmlquery"
+	"github.com/jackc/pgx/v5"
 	"golang.org/x/net/html"
-)
-
-const (
-	PriorityManual    = 0
-	PriorityKnigaLv   = 10
-	PriorityMnogoknig = 20
 )
 
 func (s *Scraper) Fetch(ctx context.Context, url string) (*html.Node, error) {
@@ -30,69 +23,78 @@ func (s *Scraper) Fetch(ctx context.Context, url string) (*html.Node, error) {
 	defer resp.Body.Close()
 	return htmlquery.Parse(resp.Body)
 }
-
 func (s *Scraper) SaveBatch(ctx context.Context, books []ScrapedBook) error {
 	if len(books) == 0 {
 		return nil
 	}
 
-	builders := make([]*ent.BookCreate, len(books))
-	for i, b := range books {
-		builders[i] = s.DB.Book.Create().
-			SetIsbn(b.Isbn).
-			SetTitle(b.Title).
-			SetAuthors(b.Authors).
-			SetURL(b.URL).
-			SetSourcePriority(b.SourcePriority).
-			SetSourceName(b.SourceName)
+	rows := make([][]any, 0, len(books))
+	for _, b := range books {
+		authorsJSON, err := json.Marshal(b.Authors)
+		if err != nil {
+			fmt.Printf("Failed to marshal authors for %s: %v\n", b.ISBN, err)
+			continue
+		}
+		rows = append(rows, []any{b.ISBN, b.Title, string(authorsJSON), b.URL, b.SourceName})
 	}
 
-	return s.DB.Book.CreateBulk(builders...).
-		OnConflict(
-			sql.ConflictColumns(book.FieldIsbn),
-			sql.UpdateWhere(sql.P(func(builder *sql.Builder) {
-				builder.WriteString("EXCLUDED.source_priority <= books.source_priority")
-			})),
-		).
-		Update(func(u *ent.BookUpsert) {
-			u.UpdateTitle()
-			u.UpdateAuthors()
-			u.UpdateURL()
-			u.UpdateSourcePriority()
-			u.UpdateSourceName()
-		}).
-		Exec(ctx)
+	_, err := s.DB.CopyFrom(
+		ctx,
+		pgx.Identifier{"books"},
+		[]string{"isbn", "title", "authors", "url", "source_name"},
+		pgx.CopyFromRows(rows),
+	)
+	if err != nil {
+		return s.upsertBatch(ctx, books)
+	}
+	return nil
+}
+
+func (s *Scraper) upsertBatch(ctx context.Context, books []ScrapedBook) error {
+	query := `
+		INSERT INTO books (isbn, title, authors, url, source_name)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (isbn) DO UPDATE SET
+			title       = EXCLUDED.title,
+			authors     = EXCLUDED.authors,
+			url         = EXCLUDED.url,
+			source_name = EXCLUDED.source_name
+		WHERE (SELECT priority FROM sources WHERE name = EXCLUDED.source_name)
+		      <= (SELECT priority FROM sources WHERE name = books.source_name)
+	`
+
+	batch := &pgx.Batch{}
+	for _, b := range books {
+		authorsJSON, err := json.Marshal(b.Authors)
+		if err != nil {
+			fmt.Printf("Failed to marshal authors for %s: %v\n", b.ISBN, err)
+			continue
+		}
+		batch.Queue(query, b.ISBN, b.Title, string(authorsJSON), b.URL, b.SourceName)
+	}
+
+	results := s.DB.SendBatch(ctx, batch)
+	defer results.Close()
+
+	for range books {
+		if _, err := results.Exec(); err != nil {
+			fmt.Printf("Upsert error: %v\n", err)
+		}
+	}
+
+	return nil
 }
 
 func (s *Scraper) BookExists(ctx context.Context, url string) bool {
-	exists, err := s.DB.Book.Query().
-		Where(book.URL(url)).
-		Exist(ctx)
+	var exists bool
+	err := s.DB.QueryRow(ctx,
+		"SELECT EXISTS(SELECT 1 FROM books WHERE url = $1)", url,
+	).Scan(&exists)
 
 	if err != nil {
 		fmt.Printf("Database check error for %s: %v\n", url, err)
-	}
-
-	return exists
-}
-
-func (s *Scraper) ShouldProcess(ctx context.Context, t Task) bool {
-	if s.Cache.Seen(t.URL) {
 		return false
 	}
 
-	if t.Type == TypeBook {
-		exists, err := s.DB.Book.Query().
-			Where(book.URL(t.URL)).
-			Exist(ctx)
-
-		if err != nil {
-			fmt.Printf("Database check error for %s: %v\n", t.URL, err)
-			return true
-		}
-
-		return !exists
-	}
-
-	return true
+	return exists
 }

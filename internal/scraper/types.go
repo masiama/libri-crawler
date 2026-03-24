@@ -2,9 +2,9 @@ package scraper
 
 import (
 	"context"
-	"libri-crawler/ent"
 	"net/http"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/net/html"
 )
 
@@ -15,9 +15,16 @@ const (
 	TypeBook
 )
 
+type SourceName string
+
+const (
+	SourceKnigaLv   SourceName = "kniga.lv"
+	SourceMnogoknig SourceName = "mnogoknig.com"
+)
+
 type Scraper struct {
 	Client *http.Client
-	DB     *ent.Client
+	DB     *pgxpool.Pool
 	Cache  *URLCache
 }
 
@@ -28,6 +35,10 @@ type Task struct {
 }
 
 type ScrapedBook struct {
-	ent.Book
-	ImageURL string
+	ISBN       string
+	Title      string
+	Authors    []string
+	URL        string
+	SourceName SourceName
+	ImageURL   string
 }

@@ -1,5 +1,4 @@
 build:
-	go generate ./ent
 	go mod tidy
 	go build -mod=readonly -o bin/crawler ./cmd/crawler
 

@@ -2,7 +2,6 @@ package scraper
 
 import (
 	"context"
-	"libri-crawler/ent"
 	"net/url"
 	"strconv"
 	"strings"
@@ -75,7 +74,7 @@ func (s *Scraper) MnogoknigBookHandler(ctx context.Context, node *html.Node) ([]
 	url := getLinkHref(node, "url")
 
 	authorNode, _ := htmlquery.Query(node, "//a[starts-with(@href,'https://mnogoknig.com/ru/author/')]")
-	var authors []string
+	authors := []string{}
 	if authorNode != nil {
 		for author := range strings.SplitSeq(htmlquery.InnerText(authorNode), ",") {
 			name := strings.TrimSpace(author)
@@ -86,14 +85,11 @@ func (s *Scraper) MnogoknigBookHandler(ctx context.Context, node *html.Node) ([]
 	}
 
 	return nil, []ScrapedBook{{
-		Book: ent.Book{
-			Isbn:           isbn,
-			Title:          title,
-			URL:            url,
-			Authors:        authors,
-			SourceName:     "mnogoknig",
-			SourcePriority: PriorityMnogoknig,
-		},
-		ImageURL: image,
+		ISBN:       isbn,
+		Title:      title,
+		URL:        url,
+		Authors:    authors,
+		SourceName: SourceMnogoknig,
+		ImageURL:   image,
 	}}, nil
 }
