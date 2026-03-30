@@ -243,13 +243,7 @@ func main() {
 func loadEnv() {
 	_ = godotenv.Load()
 
-	criticalVars := []string{"API_URL", "INTERNAL_API_KEY"}
-
-	if os.Getenv("STORAGE_TYPE") == "s3" {
-		criticalVars = append(criticalVars, "CF_BUCKET_NAME", "CF_ACCOUNT_ID", "CF_ACCESS_KEY_ID", "CF_ACCESS_KEY_SECRET")
-	}
-
-	for _, v := range criticalVars {
+	for _, v := range []string{"API_URL", "INTERNAL_API_KEY", "IMAGES_DIR"} {
 		if os.Getenv(v) == "" {
 			fatal("environment variable is required", fmt.Errorf("%s is not set", v), "variable", v)
 		}

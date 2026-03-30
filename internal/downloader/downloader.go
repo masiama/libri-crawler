@@ -9,7 +9,7 @@ import (
 
 type Downloader struct {
 	Client *http.Client
-	Store  Storage
+	Store  *LocalStorage
 }
 
 func (d *Downloader) Download(ctx context.Context, book scraper.ScrapedBook) error {
