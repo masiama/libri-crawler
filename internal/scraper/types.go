@@ -15,13 +15,6 @@ const (
 	TypeBook
 )
 
-type SourceName string
-
-const (
-	SourceKnigaLv   SourceName = "kniga.lv"
-	SourceMnogoknig SourceName = "mnogoknig.com"
-)
-
 type Scraper struct {
 	Client *http.Client
 	DB     *pgxpool.Pool

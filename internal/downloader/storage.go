@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"libri-crawler/internal/scraper"
-	"log"
 	"os"
 	"path/filepath"
 
@@ -21,17 +20,19 @@ type Storage interface {
 	Exists(ctx context.Context, book scraper.ScrapedBook) bool
 }
 
-func NewStorage() Storage {
+func NewStorage() (Storage, error) {
 	if os.Getenv("STORAGE_TYPE") == "s3" {
 		return connectBucket()
 	}
 
 	dir := os.Getenv("IMAGES_DIR")
 	if dir == "" {
-		dir = "../images"
+		return nil, fmt.Errorf("IMAGES_DIR is not set in environment")
 	}
-	os.MkdirAll(dir, os.ModePerm)
-	return &LocalStorage{RootDir: dir}
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		return nil, fmt.Errorf("failed to create directory %s: %w", dir, err)
+	}
+	return &LocalStorage{RootDir: dir}, nil
 }
 
 type LocalStorage struct {
@@ -95,13 +96,13 @@ func (s *S3Service) Exists(ctx context.Context, book scraper.ScrapedBook) bool {
 	return err == nil
 }
 
-func connectBucket() *S3Service {
+func connectBucket() (*S3Service, error) {
 	bucketName := os.Getenv("CF_BUCKET_NAME")
 	accountId := os.Getenv("CF_ACCOUNT_ID")
 	accessKeyId := os.Getenv("CF_ACCESS_KEY_ID")
 	accessKeySecret := os.Getenv("CF_ACCESS_KEY_SECRET")
 	if bucketName == "" || accountId == "" || accessKeyId == "" || accessKeySecret == "" {
-		log.Fatal("Cloudflare R2 credentials are not set in environment")
+		return nil, fmt.Errorf("Cloudflare R2 credentials are not set in environment")
 	}
 
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
@@ -109,14 +110,14 @@ func connectBucket() *S3Service {
 		config.WithRegion("auto"),
 	)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("failed to load AWS config: %w", err)
 	}
 
 	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
 		o.BaseEndpoint = aws.String(fmt.Sprintf("https://%s.r2.cloudflarestorage.com", accountId))
 	})
 
-	return &S3Service{client: client, bucketName: bucketName}
+	return &S3Service{client: client, bucketName: bucketName}, nil
 }
 
 func getFileName(book scraper.ScrapedBook) string {

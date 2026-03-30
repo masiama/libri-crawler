@@ -32,8 +32,7 @@ func (s *Scraper) SaveBatch(ctx context.Context, books []ScrapedBook) error {
 	for _, b := range books {
 		authorsJSON, err := json.Marshal(b.Authors)
 		if err != nil {
-			fmt.Printf("Failed to marshal authors for %s: %v\n", b.ISBN, err)
-			continue
+			return fmt.Errorf("failed to marshal authors for %s: %v", b.ISBN, err)
 		}
 		rows = append(rows, []any{b.ISBN, b.Title, string(authorsJSON), b.URL, b.SourceName})
 	}
@@ -67,8 +66,7 @@ func (s *Scraper) upsertBatch(ctx context.Context, books []ScrapedBook) error {
 	for _, b := range books {
 		authorsJSON, err := json.Marshal(b.Authors)
 		if err != nil {
-			fmt.Printf("Failed to marshal authors for %s: %v\n", b.ISBN, err)
-			continue
+			return fmt.Errorf("failed to marshal authors for %s: %v", b.ISBN, err)
 		}
 		batch.Queue(query, b.ISBN, b.Title, string(authorsJSON), b.URL, b.SourceName)
 	}
@@ -78,23 +76,22 @@ func (s *Scraper) upsertBatch(ctx context.Context, books []ScrapedBook) error {
 
 	for range books {
 		if _, err := results.Exec(); err != nil {
-			fmt.Printf("Upsert error: %v\n", err)
+			return fmt.Errorf("upsert error: %v", err)
 		}
 	}
 
 	return nil
 }
 
-func (s *Scraper) BookExists(ctx context.Context, url string) bool {
+func (s *Scraper) BookExists(ctx context.Context, url string) (bool, error) {
 	var exists bool
 	err := s.DB.QueryRow(ctx,
 		"SELECT EXISTS(SELECT 1 FROM books WHERE url = $1)", url,
 	).Scan(&exists)
 
 	if err != nil {
-		fmt.Printf("Database check error for %s: %v\n", url, err)
-		return false
+		return false, fmt.Errorf("database check error for %s: %v", url, err)
 	}
 
-	return exists
+	return exists, nil
 }
