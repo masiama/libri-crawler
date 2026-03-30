@@ -14,7 +14,7 @@ import (
 
 	"github.com/joho/godotenv"
 
-	"libri-crawler/internal/db"
+	"libri-crawler/internal/api"
 	"libri-crawler/internal/downloader"
 	"libri-crawler/internal/scraper"
 )
@@ -63,12 +63,6 @@ func main() {
 	start := time.Now()
 	loadEnv()
 
-	dbPool, err := db.ConnectDB()
-	if err != nil {
-		fatal("failed to connect to database", err)
-	}
-	defer dbPool.Close()
-
 	httpClient := &http.Client{Timeout: 15 * time.Second}
 	store, err := downloader.NewStorage()
 	if err != nil {
@@ -76,7 +70,12 @@ func main() {
 	}
 	cache := &scraper.URLCache{Items: make(map[string]struct{}, 100000)}
 
-	s := &scraper.Scraper{Client: httpClient, DB: dbPool, Cache: cache}
+	apiClient := &api.APIClient{
+		BaseURL:    os.Getenv("API_URL"),
+		APIKey:     os.Getenv("INTERNAL_API_KEY"),
+		HTTPClient: httpClient,
+	}
+	s := &scraper.Scraper{Client: httpClient, Cache: cache, API: apiClient}
 	dl := &downloader.Downloader{Store: store, Client: httpClient}
 
 	var wg sync.WaitGroup
@@ -244,7 +243,7 @@ func main() {
 func loadEnv() {
 	_ = godotenv.Load()
 
-	criticalVars := []string{"DATABASE_URL"}
+	criticalVars := []string{"API_URL", "INTERNAL_API_KEY"}
 
 	if os.Getenv("STORAGE_TYPE") == "s3" {
 		criticalVars = append(criticalVars, "CF_BUCKET_NAME", "CF_ACCOUNT_ID", "CF_ACCESS_KEY_ID", "CF_ACCESS_KEY_SECRET")

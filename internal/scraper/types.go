@@ -2,9 +2,9 @@ package scraper
 
 import (
 	"context"
+	"libri-crawler/internal/api"
 	"net/http"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/net/html"
 )
 
@@ -17,8 +17,8 @@ const (
 
 type Scraper struct {
 	Client *http.Client
-	DB     *pgxpool.Pool
 	Cache  *URLCache
+	API    *api.APIClient
 }
 
 type Task struct {
@@ -28,10 +28,10 @@ type Task struct {
 }
 
 type ScrapedBook struct {
-	ISBN       string
-	Title      string
-	Authors    []string
-	URL        string
-	SourceName SourceName
-	ImageURL   string
+	ISBN       string     `json:"isbn"`
+	Title      string     `json:"title"`
+	Authors    []string   `json:"authors"`
+	URL        string     `json:"url"`
+	SourceName SourceName `json:"sourceName"`
+	ImageURL   string     `json:"-"`
 }
