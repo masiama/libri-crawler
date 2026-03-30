@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -152,16 +153,42 @@ func main() {
 		})
 	}
 
-	activeTasks.Add(2)
-	tasksChan <- scraper.Task{
-		URL:     "https://kniga.lv/shop",
-		Type:    scraper.TypeDiscovery,
-		Handler: s.KnigaListingHandler,
+	sources := map[string]scraper.Task{
+		"kniga.lv": {
+			URL:     "https://kniga.lv/shop",
+			Type:    scraper.TypeDiscovery,
+			Handler: s.KnigaListingHandler,
+		},
+		"mnogoknig.com": {
+			URL:     "https://mnogoknig.com/ru/categories/1/knigi",
+			Type:    scraper.TypeDiscovery,
+			Handler: s.MnogoknigCategoryHandler,
+		},
 	}
-	tasksChan <- scraper.Task{
-		URL:     "https://mnogoknig.com/ru/categories/1/knigi",
-		Type:    scraper.TypeDiscovery,
-		Handler: s.MnogoknigCategoryHandler,
+	sourcesStr := ""
+	for k := range sources {
+		sourcesStr += fmt.Sprintf("'%s', ", k)
+	}
+	sourcesStr = sourcesStr[:len(sourcesStr)-2]
+
+	source := flag.String("source", "all", fmt.Sprintf("Source to scrape: %s, or 'all'", sourcesStr))
+	flag.Parse()
+
+	switch *source {
+	case "all":
+		log.Printf("Starting scraper for all sources: %s\n", sourcesStr)
+		for _, t := range sources {
+			activeTasks.Add(1)
+			tasksChan <- t
+		}
+	default:
+		t, ok := sources[*source]
+		if !ok {
+			log.Fatalf("Invalid source '%s'. Valid options are: %s, or 'all'", *source, sourcesStr)
+		}
+		log.Printf("Starting scraper for source: %s\n", *source)
+		activeTasks.Add(1)
+		tasksChan <- t
 	}
 
 	go func() {
