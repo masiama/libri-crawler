@@ -2,9 +2,11 @@ package scraper
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"libri-crawler/internal/api"
 	"net/http"
+	"net/url"
 
 	"github.com/antchfx/htmlquery"
 	"golang.org/x/net/html"
@@ -20,6 +22,10 @@ func (s *Scraper) Fetch(ctx context.Context, url string) (*html.Node, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("fetch failed: %s", resp.Status)
+	}
 	return htmlquery.Parse(resp.Body)
 }
 
@@ -41,20 +47,22 @@ func (s *Scraper) SaveBatch(ctx context.Context, books []ScrapedBook) error {
 	return nil
 }
 
-func (s *Scraper) BookExists(ctx context.Context, url string) (bool, error) {
-	resp, err := s.API.Get(ctx, "/api/v1/internal/books/exists?url="+url)
+func (s *Scraper) BookExists(ctx context.Context, bookURL string) (bool, error) {
+	resp, err := s.API.Get(ctx, "/api/v1/internal/books/exists?url="+url.QueryEscape(bookURL))
 	if err != nil {
 		return false, fmt.Errorf("failed to check book existence: %w", err)
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return false, fmt.Errorf("unexpected status %d", resp.StatusCode)
 	}
 
-	result, err := api.DecodeJSON[map[string]bool](resp)
-	if err != nil {
+	var res struct {
+		Exists bool `json:"exists"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
 		return false, err
 	}
-
-	return result["exists"], nil
+	return res.Exists, nil
 }

@@ -68,7 +68,7 @@ func main() {
 	if err != nil {
 		fatal("failed to initialize storage", err)
 	}
-	cache := &scraper.URLCache{Items: make(map[string]struct{}, 100000)}
+	cache := scraper.NewURLCache(100_000)
 
 	apiClient := &api.APIClient{
 		BaseURL:    os.Getenv("API_URL"),

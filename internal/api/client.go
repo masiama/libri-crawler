@@ -51,7 +51,10 @@ func DecodeJSON[T any](resp *http.Response) (T, error) {
 }
 
 func ReadError(resp *http.Response) string {
+	if resp == nil || resp.Body == nil {
+		return "empty response"
+	}
 	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
 	return string(body)
 }
