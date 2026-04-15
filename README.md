@@ -1,43 +1,74 @@
 # Libri Crawler
 
-This service is the data acquisition engine for the Libri ecosystem. It extracts book metadata and cover images from external sources, sending books to [libri-api](https://github.com/masiama/libri-api) and storing images on local disk.
+Go crawler that scrapes supported book sources, sends book metadata to
+[`libri-api`](https://github.com/masiama/libri-api), and downloads cover images to
+shared local storage.
 
-### Features
+## Features
 
-- **Parallel Processing**: Separate worker pools scrape pages and download images simultaneously for high throughput.
-- **Manual Extraction**: Uses `net/http` and `htmlquery` (XPath) for precise, low-memory data mining.
-- **Structured Logging**: JSON log output via `slog` for machine-readable logs and Kotlin-side monitoring.
-- **Reliability**: Context-aware workers ensure timeouts and graceful shutdowns to prevent hanging processes.
+- Concurrent scraping, saving, and image downloading
+- Structured JSON logging with `slog`
+- Internal API integration for batched book upserts
+- Shared filesystem storage for downloaded covers
 
-### Supported Sources
+## Supported sources
 
-- kniga.lv
-- mnogoknig.com
-- _More sources coming soon_
+- `kniga.lv`
+- `mnogoknig.com`
 
----
+## Requirements
 
-### Getting Started
+- Go 1.26+
+- A running [`libri-api`](https://github.com/masiama/libri-api) instance
+- An images directory shared with `libri-api`
 
-**1. Configuration**
-Copy the template and add credentials:
+## Configuration
 
-```bash
-cp .env.example .env
-```
-
-**2. Installation**
+Set these environment variables before running:
 
 ```bash
-go mod tidy
+API_URL=http://localhost:8080
+INTERNAL_API_KEY=change-me
+IMAGES_DIR=/absolute/path/to/images
 ```
 
-**3. Execution**
+`API_URL` should point to the
+[`libri-api`](https://github.com/masiama/libri-api) instance that exposes the
+internal crawler endpoints.
+
+## Running locally
+
+Run the crawler:
 
 ```bash
 make run
 ```
 
-### Architecture
+## Build
 
-The crawler does not write to the database directly. Scraped books are sent in batches to `libri-api` via an internal HTTP endpoint. Images are downloaded to a local directory shared with `libri-api` via a Docker volume.
+Build the binary:
+
+```bash
+make build
+```
+
+Clean build output:
+
+```bash
+make clean
+```
+
+## CLI options
+
+The crawler entrypoint is `cmd/crawler`.
+
+Available flags:
+
+- `--source=<name|all>`
+- `--level=<debug|info|warn|error>`
+
+Example:
+
+```bash
+go run ./cmd/crawler --source=kniga.lv --level=debug
+```
