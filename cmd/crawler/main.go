@@ -80,6 +80,16 @@ func main() {
 
 	var wg sync.WaitGroup
 	var activeTasks sync.WaitGroup
+	var saveErrOnce sync.Once
+	var saveErr error
+	recordSaveErr := func(err error) {
+		if err == nil {
+			return
+		}
+		saveErrOnce.Do(func() {
+			saveErr = err
+		})
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -108,23 +118,23 @@ func main() {
 				case b, ok := <-saveChan:
 					if !ok {
 						if len(batch) > 0 {
-							s.SaveBatch(ctx, batch)
+							recordSaveErr(s.SaveBatch(ctx, batch))
 						}
 						return
 					}
 					batch = append(batch, b)
 					if len(batch) >= 100 {
-						s.SaveBatch(ctx, batch)
+						recordSaveErr(s.SaveBatch(ctx, batch))
 						batch = nil
 					}
 				case <-ticker.C:
 					if len(batch) > 0 {
-						s.SaveBatch(ctx, batch)
+						recordSaveErr(s.SaveBatch(ctx, batch))
 						batch = nil
 					}
 				case <-ctx.Done():
 					if len(batch) > 0 {
-						s.SaveBatch(context.Background(), batch)
+						recordSaveErr(s.SaveBatch(context.Background(), batch))
 					}
 					return
 				}
@@ -237,6 +247,9 @@ func main() {
 	}()
 
 	wg.Wait()
+	if saveErr != nil {
+		fatal("failed to persist scraped books", saveErr)
+	}
 	slog.Info("scraping completed", "total_books_processed", totalProcessed, "duration", time.Since(start).String())
 }
 
