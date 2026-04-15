@@ -8,7 +8,7 @@ import (
 )
 
 func getMetaContent(n *html.Node, itemprop string) string {
-	metaNode, _ := htmlquery.Query(n, fmt.Sprintf("//meta[@itemprop='%s']", itemprop))
+	metaNode, _ := htmlquery.Query(n, fmt.Sprintf(".//meta[@itemprop='%s']", itemprop))
 	if metaNode == nil {
 		return ""
 	}
@@ -16,7 +16,7 @@ func getMetaContent(n *html.Node, itemprop string) string {
 }
 
 func getLinkHref(n *html.Node, itemprop string) string {
-	metaNode, _ := htmlquery.Query(n, fmt.Sprintf("//link[@itemprop='%s']", itemprop))
+	metaNode, _ := htmlquery.Query(n, fmt.Sprintf(".//link[@itemprop='%s']", itemprop))
 	if metaNode == nil {
 		return ""
 	}

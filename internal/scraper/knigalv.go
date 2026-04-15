@@ -51,7 +51,7 @@ func processNode(n *html.Node) []ScrapedBook {
 	title := getMetaContent(n, "name")
 	url := getMetaContent(n, "url")
 
-	authorNode, _ := htmlquery.Query(n, "//div[@class='product-author']")
+	authorNode, _ := htmlquery.Query(n, ".//div[@class='product-author']")
 	authors := []string{}
 	if authorNode != nil {
 		for author := range strings.SplitSeq(htmlquery.InnerText(authorNode), ",") {
