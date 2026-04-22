@@ -20,9 +20,10 @@ import (
 )
 
 const (
-	scraperWorkers    = 25
+	scraperWorkers    = 10
 	downloaderWorkers = 100
-	saverWorkers      = 10
+	saverWorkers      = 3
+	apiTimeout        = 60 * time.Second
 )
 
 var levelMap = map[string]slog.Level{
@@ -63,7 +64,7 @@ func main() {
 	start := time.Now()
 	loadEnv()
 
-	httpClient := &http.Client{Timeout: 15 * time.Second}
+	httpClient := &http.Client{Timeout: apiTimeout}
 	store, err := downloader.NewStorage()
 	if err != nil {
 		fatal(LogEventStorageInitializationFailed, err)
