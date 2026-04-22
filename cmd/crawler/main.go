@@ -55,7 +55,7 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
 	slog.SetDefault(logger)
 
-	slog.Info("logger initialized", "level", level.String())
+	slog.Info(string(LogEventCrawlerInitialized), "log_level", level.String())
 
 	var scrapersRunning int32 = scraperWorkers
 	var totalProcessed int64
@@ -66,7 +66,7 @@ func main() {
 	httpClient := &http.Client{Timeout: 15 * time.Second}
 	store, err := downloader.NewStorage()
 	if err != nil {
-		fatal("failed to initialize storage", err)
+		fatal(LogEventStorageInitializationFailed, err)
 	}
 	cache := scraper.NewURLCache(100_000)
 
@@ -101,9 +101,14 @@ func main() {
 	go func() {
 		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()
+		var lastReported int64 = -1
 		for range ticker.C {
 			count := atomic.LoadInt64(&totalProcessed)
-			slog.Debug("progress update", "books_processed", count)
+			if count == lastReported {
+				continue
+			}
+			lastReported = count
+			slog.Info(string(LogEventCrawlProgress), "books_found", count)
 		}
 	}()
 
@@ -162,7 +167,7 @@ func main() {
 			for t := range tasksChan {
 				node, err := s.Fetch(ctx, t.URL)
 				if err != nil {
-					slog.Error("failed to fetch URL", "url", t.URL, "error", err)
+					slog.Error(string(LogEventSourceFetchFailed), "url", t.URL, "error", err)
 					activeTasks.Done()
 					continue
 				}
@@ -187,7 +192,7 @@ func main() {
 						if nt.Type == scraper.TypeBook {
 							exists, err := s.BookExists(ctx, nt.URL)
 							if err != nil {
-								slog.Error("failed to check if book exists", "url", nt.URL, "error", err)
+								slog.Error(string(LogEventBookExistsCheckFailed), "url", nt.URL, "error", err)
 								continue
 							}
 							if exists {
@@ -221,7 +226,7 @@ func main() {
 
 	switch *source {
 	case "all":
-		slog.Info("starting scraper for all sources", "available_sources", scraper.GetSources())
+		slog.Info(string(LogEventCrawlStarted), "mode", "all", "sources", scraper.GetSources())
 		for _, t := range sources {
 			activeTasks.Add(1)
 			tasksChan <- t
@@ -230,13 +235,10 @@ func main() {
 		sourceName := scraper.SourceName(*source)
 		t, ok := sources[sourceName]
 		if !ok {
-			slog.Error("invalid source selected",
-				"requested", *source,
-				"valid_options", scraper.GetSources(),
-			)
+			slog.Error(string(LogEventInvalidSource), "requested_source", *source, "valid_sources", scraper.GetSources())
 			return
 		}
-		slog.Info("starting scraper for single source", "source", *source)
+		slog.Info(string(LogEventCrawlStarted), "mode", "single", "source", *source)
 		activeTasks.Add(1)
 		tasksChan <- t
 	}
@@ -248,9 +250,9 @@ func main() {
 
 	wg.Wait()
 	if saveErr != nil {
-		fatal("failed to persist scraped books", saveErr)
+		fatal(LogEventBatchSaveFailed, saveErr)
 	}
-	slog.Info("scraping completed", "total_books_processed", totalProcessed, "duration", time.Since(start).String())
+	slog.Info(string(LogEventCrawlCompleted), "books_found", totalProcessed, "duration", time.Since(start).String())
 }
 
 func loadEnv() {
@@ -258,12 +260,12 @@ func loadEnv() {
 
 	for _, v := range []string{"API_URL", "INTERNAL_API_KEY", "IMAGES_DIR"} {
 		if os.Getenv(v) == "" {
-			fatal("environment variable is required", fmt.Errorf("%s is not set", v), "variable", v)
+			fatal(LogEventRequiredEnvMissing, fmt.Errorf("%s is not set", v), "variable", v)
 		}
 	}
 }
 
-func fatal(msg string, err error, attrs ...any) {
-	slog.Error(msg, append(attrs, "error", err)...)
+func fatal(event LogEvent, err error, attrs ...any) {
+	slog.Error(string(event), append(attrs, "error", err)...)
 	os.Exit(1)
 }

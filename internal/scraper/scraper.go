@@ -36,7 +36,7 @@ func (s *Scraper) SaveBatch(ctx context.Context, books []ScrapedBook) error {
 
 	resp, err := s.API.Post(ctx, "/api/v1/internal/books/batch", map[string][]ScrapedBook{"books": books})
 	if err != nil {
-		return fmt.Errorf("failed to send batch: %w", err)
+		return fmt.Errorf("send batch request: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -50,7 +50,7 @@ func (s *Scraper) SaveBatch(ctx context.Context, books []ScrapedBook) error {
 func (s *Scraper) BookExists(ctx context.Context, bookURL string) (bool, error) {
 	resp, err := s.API.Get(ctx, "/api/v1/internal/books/exists?url="+url.QueryEscape(bookURL))
 	if err != nil {
-		return false, fmt.Errorf("failed to check book existence: %w", err)
+		return false, fmt.Errorf("send exists request: %w", err)
 	}
 	defer resp.Body.Close()
 

@@ -17,10 +17,10 @@ type LocalStorage struct {
 func NewStorage() (*LocalStorage, error) {
 	dir := os.Getenv("IMAGES_DIR")
 	if dir == "" {
-		return nil, fmt.Errorf("IMAGES_DIR is not set in environment")
+		return nil, fmt.Errorf("IMAGES_DIR is not set")
 	}
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-		return nil, fmt.Errorf("failed to create directory %s: %w", dir, err)
+		return nil, fmt.Errorf("create directory %s: %w", dir, err)
 	}
 	return &LocalStorage{RootDir: dir}, nil
 }
@@ -29,7 +29,7 @@ func (l *LocalStorage) Save(ctx context.Context, book scraper.ScrapedBook, data 
 	dir, fullPath := l.getShardedPath(book)
 
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("failed to create directory %s: %w", dir, err)
+		return fmt.Errorf("create directory %s: %w", dir, err)
 	}
 
 	f, err := os.Create(fullPath)
