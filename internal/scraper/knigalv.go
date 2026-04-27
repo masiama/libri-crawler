@@ -62,24 +62,40 @@ func processNode(n *html.Node) []ScrapedBook {
 		}
 	}
 
-	var books []ScrapedBook
+	var mainISBN string
+	var barcodes []Barcode
 	for isbn := range strings.SplitSeq(productIdArr[1], ",") {
 		isbn = processISBN(isbn)
 		if isbn == "" {
 			continue
 		}
-		books = append(books, ScrapedBook{
-			ISBN:       isbn,
-			Title:      title,
-			URL:        url,
-			Authors:    authors,
-			SourceName: SourceKnigaLv,
-			ImageURL:   image,
-		})
+		if mainISBN == "" {
+			mainISBN = isbn
+		}
+		barcodes = append(barcodes, Barcode{Type: "isbn", Value: isbn})
+	}
+	if mainISBN == "" {
+		return nil
 	}
 
-	return books
+	mpn := getMetaContent(n, "mpn")
+	if mpn != "" {
+		barcodes = append(barcodes, Barcode{Type: "mpn", Value: mpn})
+	}
+	sku := getMetaContent(n, "sku")
+	if sku != "" {
+		barcodes = append(barcodes, Barcode{Type: "sku", Value: sku})
+	}
 
+	return []ScrapedBook{{
+		ISBN:       mainISBN,
+		Title:      title,
+		URL:        url,
+		Authors:    authors,
+		SourceName: SourceKnigaLv,
+		ImageURL:   image,
+		Barcodes:   barcodes,
+	}}
 }
 
 var isbnRegex = regexp.MustCompile(`^[\d-]+$`)

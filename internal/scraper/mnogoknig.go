@@ -72,6 +72,7 @@ func (s *Scraper) MnogoknigBookHandler(ctx context.Context, node *html.Node) ([]
 	image := getLinkHref(node, "image")
 	title := getMetaContent(node, "name")
 	url := getLinkHref(node, "url")
+	mpn := getMetaContent(node, "mpn")
 
 	authorNode, _ := htmlquery.Query(node, "//a[starts-with(@href,'https://mnogoknig.com/ru/author/')]")
 	authors := []string{}
@@ -84,6 +85,11 @@ func (s *Scraper) MnogoknigBookHandler(ctx context.Context, node *html.Node) ([]
 		}
 	}
 
+	barcodes := []Barcode{{Type: "isbn", Value: isbn}}
+	if mpn != "" {
+		barcodes = append(barcodes, Barcode{Type: "mpn", Value: mpn})
+	}
+
 	return nil, []ScrapedBook{{
 		ISBN:       isbn,
 		Title:      title,
@@ -91,5 +97,6 @@ func (s *Scraper) MnogoknigBookHandler(ctx context.Context, node *html.Node) ([]
 		Authors:    authors,
 		SourceName: SourceMnogoknig,
 		ImageURL:   image,
+		Barcodes:   barcodes,
 	}}, nil
 }

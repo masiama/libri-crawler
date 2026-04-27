@@ -33,5 +33,11 @@ type ScrapedBook struct {
 	Authors    []string   `json:"authors"`
 	URL        string     `json:"url"`
 	SourceName SourceName `json:"sourceName"`
+	Barcodes   []Barcode  `json:"barcodes,omitempty"`
 	ImageURL   string     `json:"-"`
+}
+
+type Barcode struct {
+	Type  string `json:"type"`
+	Value string `json:"value"`
 }

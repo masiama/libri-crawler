@@ -29,12 +29,16 @@ func (s *Scraper) Fetch(ctx context.Context, url string) (*html.Node, error) {
 	return htmlquery.Parse(resp.Body)
 }
 
+type BookBatchRequest struct {
+	Books []ScrapedBook `json:"books"`
+}
+
 func (s *Scraper) SaveBatch(ctx context.Context, books []ScrapedBook) error {
 	if len(books) == 0 {
 		return nil
 	}
 
-	resp, err := s.API.Post(ctx, "/api/v1/internal/books/batch", map[string][]ScrapedBook{"books": books})
+	resp, err := s.API.Post(ctx, "/api/v1/internal/books/batch", BookBatchRequest{books})
 	if err != nil {
 		return fmt.Errorf("send batch request: %w", err)
 	}
