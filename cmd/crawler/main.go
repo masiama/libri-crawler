@@ -58,8 +58,7 @@ func main() {
 
 	slog.Info(string(LogEventCrawlerInitialized), "log_level", level.String())
 
-	var scrapersRunning int32 = scraperWorkers
-	var totalProcessed int64
+	var totalProcessed atomic.Int64
 
 	start := time.Now()
 	loadEnv()
@@ -80,6 +79,7 @@ func main() {
 	dl := &downloader.Downloader{Store: store, Client: httpClient}
 
 	var wg sync.WaitGroup
+	var scraperWg sync.WaitGroup
 	var activeTasks sync.WaitGroup
 	var saveErrOnce sync.Once
 	var saveErr error
@@ -104,7 +104,7 @@ func main() {
 		defer ticker.Stop()
 		var lastReported int64 = -1
 		for range ticker.C {
-			count := atomic.LoadInt64(&totalProcessed)
+			count := totalProcessed.Load()
 			if count == lastReported {
 				continue
 			}
@@ -116,7 +116,7 @@ func main() {
 	for range saverWorkers {
 		wg.Go(func() {
 			var batch []scraper.ScrapedBook
-			ticker := time.NewTicker(time.Second)
+			ticker := time.NewTicker(time.Second * 5)
 			defer ticker.Stop()
 
 			for {
@@ -157,13 +157,9 @@ func main() {
 	}
 
 	for range scraperWorkers {
+		scraperWg.Add(1)
 		wg.Go(func() {
-			defer func() {
-				if atomic.AddInt32(&scrapersRunning, -1) == 0 {
-					close(saveChan)
-					close(imagesChan)
-				}
-			}()
+			defer scraperWg.Done()
 
 			for t := range tasksChan {
 				node, err := s.Fetch(ctx, t.URL)
@@ -175,7 +171,7 @@ func main() {
 
 				next, books, _ := t.Handler(ctx, node)
 
-				atomic.AddInt64(&totalProcessed, int64(len(books)))
+				totalProcessed.Add(int64(len(books)))
 
 				for _, b := range books {
 					saveChan <- b
@@ -197,7 +193,7 @@ func main() {
 								continue
 							}
 							if exists {
-								atomic.AddInt64(&totalProcessed, 1)
+								totalProcessed.Add(1)
 								continue
 							}
 						}
@@ -247,13 +243,17 @@ func main() {
 	go func() {
 		activeTasks.Wait()
 		close(tasksChan)
+
+		scraperWg.Wait()
+		close(saveChan)
+		close(imagesChan)
 	}()
 
 	wg.Wait()
 	if saveErr != nil {
 		fatal(LogEventBatchSaveFailed, saveErr)
 	}
-	slog.Info(string(LogEventCrawlCompleted), "books_found", totalProcessed, "duration", time.Since(start).String())
+	slog.Info(string(LogEventCrawlCompleted), "books_found", totalProcessed.Load(), "duration", time.Since(start).String())
 }
 
 func loadEnv() {
