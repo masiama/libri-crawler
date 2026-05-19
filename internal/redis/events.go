@@ -1,20 +1,25 @@
 package redis
 
-type Event string
+import "libri-crawler/internal/scraper"
+
+type EventType string
 
 const (
-	EventCompleted = Event("COMPLETED")
-	EventError     = Event("ERROR")
+	EventBook      EventType = "book"
+	EventProgress  EventType = "progress"
+	EventCompleted EventType = "completed"
+	EventError     EventType = "error"
 )
 
-type crawlCompletedEvent struct {
-	Type    Event  `json:"type"`
-	CrawlID string `json:"crawlId"`
-	Total   int64  `json:"total"`
+type CrawlerEvent struct {
+	Type       EventType            `json:"type"`
+	CrawlID    int64                `json:"crawlId"`
+	BooksFound *int64               `json:"booksFound,omitempty"`
+	Error      *string              `json:"error,omitempty"`
+	Book       *scraper.ScrapedBook `json:"book,omitempty"`
 }
 
-type crawlErrorEvent struct {
-	Type    Event  `json:"type"`
-	CrawlID string `json:"crawlId"`
-	Error   error  `json:"error"`
+type crawlerCommand struct {
+	CrawlID int64              `json:"crawlId"`
+	Source  scraper.SourceName `json:"source"`
 }

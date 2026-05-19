@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"sync"
@@ -25,7 +26,7 @@ type Runner struct {
 	Redis      *redis.Client
 }
 
-func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID string) error {
+func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int64) error {
 	start := time.Now()
 	slog.Debug(string(LogEventCrawlStarted), "source", source, "crawl_id", crawlID)
 
@@ -37,7 +38,7 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID str
 
 	rootTask, ok := sourceTasks(s)[source]
 	if !ok {
-		return ErrInvalidSource
+		return errors.New(string(LogEventInvalidSource))
 	}
 
 	var wg sync.WaitGroup
@@ -93,7 +94,7 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID str
 	for range publisherWorkers {
 		wg.Go(func() {
 			for book := range publishChan {
-				err := r.Redis.PublishBook(ctx, book)
+				err := r.Redis.PublishBook(ctx, crawlID, book)
 				if err != nil {
 					recordGlobalErr(err, LogEventBookPublishFailed, "url", book.URL)
 				}

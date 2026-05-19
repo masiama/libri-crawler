@@ -5,10 +5,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"libri-crawler/internal/scraper"
 
 	"github.com/redis/go-redis/v9"
+)
+
+const (
+	COMMANDS_QUEUE = "crawler:commands"
+	EVENTS_QUEUE   = "crawl:events"
+	BOOK_URLS_SET  = "books:existing_urls"
 )
 
 type Client struct {
@@ -34,53 +41,61 @@ func (c *Client) Close() error {
 	return c.rdb.Close()
 }
 
+func (c *Client) ListenForCommands(ctx context.Context) (*crawlerCommand, error) {
+	results, err := c.rdb.BLPop(ctx, 0, COMMANDS_QUEUE).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	var cmd crawlerCommand
+	if err := json.Unmarshal([]byte(results[1]), &cmd); err != nil {
+		return nil, fmt.Errorf("malformed command json: %w", err)
+	}
+
+	return &cmd, nil
+}
+
+func (c *Client) AcquireCrawlLock(ctx context.Context, source scraper.SourceName, ttl time.Duration) (bool, error) {
+	return c.rdb.SetNX(ctx, c.getLockKey(source), "active", ttl).Result()
+}
+
+func (c *Client) ExtendCrawlLock(ctx context.Context, source scraper.SourceName, ttl time.Duration) error {
+	return c.rdb.Expire(ctx, c.getLockKey(source), ttl).Err()
+}
+
+func (c *Client) ReleaseCrawlLock(ctx context.Context, source scraper.SourceName) error {
+	return c.rdb.Del(ctx, c.getLockKey(source)).Err()
+}
+
 func (c *Client) IsBookURLKnown(ctx context.Context, bookURL string) (bool, error) {
-	reply, err := c.rdb.SIsMember(ctx, "books:existing_urls", bookURL).Result()
-	if err != nil {
-		return false, err
-	}
-	return reply, nil
+	return c.rdb.SIsMember(ctx, BOOK_URLS_SET, bookURL).Result()
 }
 
-func (c *Client) PublishBook(ctx context.Context, book scraper.ScrapedBook) error {
-	jsonBytes, err := json.Marshal(book)
-	if err != nil {
-		return err
-	}
-
-	c.rdb.LPush(ctx, "books:queue", jsonBytes)
-	return nil
+func (c *Client) PublishBook(ctx context.Context, crawlID int64, book scraper.ScrapedBook) error {
+	return c.publish(ctx, CrawlerEvent{Type: EventBook, CrawlID: crawlID, Book: &book})
 }
 
-func (c *Client) PublishCompleted(ctx context.Context, crawlID string, total int64) error {
-	event := crawlCompletedEvent{
-		Type:    EventCompleted,
-		CrawlID: crawlID,
-		Total:   total,
-	}
+func (c *Client) PublishProgress(ctx context.Context, crawlID int64, booksFound int64) error {
+	return c.publish(ctx, CrawlerEvent{Type: EventProgress, CrawlID: crawlID, BooksFound: &booksFound})
+}
+
+func (c *Client) PublishCompleted(ctx context.Context, crawlID int64, booksFound int64) error {
+	return c.publish(ctx, CrawlerEvent{Type: EventCompleted, CrawlID: crawlID, BooksFound: &booksFound})
+}
+
+func (c *Client) PublishError(ctx context.Context, crawlID int64, err error) error {
+	errStr := err.Error()
+	return c.publish(ctx, CrawlerEvent{Type: EventError, CrawlID: crawlID, Error: &errStr})
+}
+
+func (c *Client) getLockKey(source scraper.SourceName) string {
+	return fmt.Sprintf("lock:crawler:%s", source)
+}
+
+func (c *Client) publish(ctx context.Context, event CrawlerEvent) error {
 	jsonBytes, err := json.Marshal(event)
 	if err != nil {
 		return err
 	}
-	c.rdb.LPush(ctx, "crawl:events", jsonBytes)
-	return nil
-}
-
-func (c *Client) PublishError(ctx context.Context, crawlID string, err error) error {
-	event := crawlErrorEvent{
-		Type:    EventError,
-		CrawlID: crawlID,
-		Error:   err,
-	}
-	jsonBytes, err := json.Marshal(event)
-	if err != nil {
-		return err
-	}
-	c.rdb.LPush(ctx, "crawl:events", jsonBytes)
-	return nil
-}
-
-func (c *Client) PublishProgress(ctx context.Context, crawlID string, count int64) error {
-	key := fmt.Sprintf("crawl:%s:progress", crawlID)
-	return c.rdb.Set(ctx, key, count, 0).Err()
+	return c.rdb.LPush(ctx, EVENTS_QUEUE, jsonBytes).Err()
 }

@@ -58,22 +58,22 @@ func main() {
 		Redis:      rdb,
 	}
 
-	manager := NewCrawlManager(runner)
+	manager := NewCrawlManager(runner, rdb)
+	ctx := context.Background()
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = defaultPort
-	}
+	slog.Info(string(LogEventCrawlerDaemonStarted))
 
-	server := &http.Server{
-		Addr:    ":" + port,
-		Handler: newServer(manager),
-	}
+	for {
+		cmd, err := rdb.ListenForCommands(ctx)
+		if err != nil {
+			slog.Error(string(LogEventRedisCommandFetchFailed), "error", err)
+			time.Sleep(2 * time.Second)
+			continue
+		}
 
-	slog.Info(string(LogEventCrawlerServerStarted), "port", port)
+		slog.Debug(string(LogEventCommandReceived), "crawlId", cmd.CrawlID, "source", cmd.Source)
 
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		fatal(LogEventCrawlerServerFailed, err)
+		manager.ProcessCommand(ctx, cmd.CrawlID, cmd.Source)
 	}
 }
 

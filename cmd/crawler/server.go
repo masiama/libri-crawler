@@ -2,135 +2,73 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
+	"fmt"
 	"log/slog"
-	"net/http"
-	"strings"
-	"sync"
+	"time"
 
+	"libri-crawler/internal/redis"
 	"libri-crawler/internal/scraper"
 )
 
-var (
-	ErrAllSourcesRunning    = errors.New("all sources are already running")
-	ErrSourceAlreadyRunning = errors.New("source is already running")
-	ErrInvalidSource        = errors.New("invalid source")
-)
-
 type crawlManager struct {
-	mu     sync.Mutex
-	active map[scraper.SourceName]struct{}
 	runner *Runner
+	rdb    *redis.Client
 }
 
-type crawlResponse struct {
-	StartedSources []string `json:"startedSources"`
+func NewCrawlManager(runner *Runner, rdb *redis.Client) *crawlManager {
+	return &crawlManager{runner: runner, rdb: rdb}
 }
 
-type errorResponse struct {
-	Error string `json:"error"`
-}
-
-func NewCrawlManager(runner *Runner) *crawlManager {
-	return &crawlManager{
-		active: make(map[scraper.SourceName]struct{}),
-		runner: runner,
-	}
-}
-
-func newServer(manager *crawlManager) http.Handler {
-	mux := http.NewServeMux()
-	mux.HandleFunc("POST /crawl", manager.handleCrawl)
-	return mux
-}
-
-func (m *crawlManager) handleCrawl(w http.ResponseWriter, r *http.Request) {
-	started, err := m.start(r.URL.Query().Get("source"), r.URL.Query().Get("crawlId"))
-	if err != nil {
-		switch {
-		case errors.Is(err, ErrAllSourcesRunning), errors.Is(err, ErrSourceAlreadyRunning):
-			writeJSON(w, http.StatusConflict, errorResponse{Error: err.Error()})
-		case errors.Is(err, ErrInvalidSource):
-			writeJSON(w, http.StatusBadRequest, errorResponse{
-				Error: "invalid source, expected one of: " + scraper.GetSourcesString(),
-			})
-		default:
-			writeJSON(w, http.StatusInternalServerError, errorResponse{Error: "failed to start crawl"})
-		}
+func (m *crawlManager) ProcessCommand(ctx context.Context, crawlID int64, source scraper.SourceName) {
+	if !scraper.IsValidSource(source) {
+		slog.Error(string(LogEventInvalidSource), "crawlId", crawlID, "source", source)
+		_ = m.rdb.PublishError(ctx, crawlID, fmt.Errorf("invalid source, expected one of: %s", scraper.GetSourcesString()))
 		return
 	}
 
-	response := crawlResponse{StartedSources: make([]string, 0, len(started))}
-	for _, source := range started {
-		response.StartedSources = append(response.StartedSources, string(source))
-	}
-
-	writeJSON(w, http.StatusAccepted, response)
-}
-
-func (m *crawlManager) start(rawSource, crawlId string) ([]scraper.SourceName, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	requestedSources, err := selectSources(strings.TrimSpace(rawSource), m.active)
+	lockAcquired, err := m.rdb.AcquireCrawlLock(ctx, source, 10*time.Minute)
 	if err != nil {
-		return nil, err
+		slog.Error(string(LogEventLockAcquisitionFailed), "source", source, "error", err)
+		return
+	}
+	if !lockAcquired {
+		slog.Error(string(LogEventCrawlRejectedDuplicate), "source", source, "crawlId", crawlID)
+		_ = m.rdb.PublishError(ctx, crawlID, fmt.Errorf("source %s is already running", source))
+		return
 	}
 
-	for _, source := range requestedSources {
-		m.active[source] = struct{}{}
-		go m.run(source, crawlId)
-	}
-
-	return requestedSources, nil
+	go m.executeJob(source, crawlID)
 }
 
-func (m *crawlManager) run(source scraper.SourceName, crawlId string) {
-	defer func() {
-		m.mu.Lock()
-		delete(m.active, source)
-		m.mu.Unlock()
+func (m *crawlManager) executeJob(source scraper.SourceName, crawlID int64) {
+	ctx := context.Background()
+
+	cancelCtx, cancelWatchdog := context.WithCancel(ctx)
+	defer cancelWatchdog()
+
+	go func() {
+		ticker := time.NewTicker(3 * time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				if err := m.rdb.ExtendCrawlLock(ctx, source, 10*time.Minute); err != nil {
+					slog.Error(string(LogEventLockExtensionFailed), "source", source, "error", err)
+				}
+			case <-cancelCtx.Done():
+				return
+			}
+		}
 	}()
 
-	if err := m.runner.Run(context.Background(), source, crawlId); err != nil {
-		slog.Error(string(LogEventCrawlFailed), "source", source, "crawlId", crawlId, "error", err)
-	}
-}
-
-func selectSources(
-	requested string,
-	active map[scraper.SourceName]struct{},
-) ([]scraper.SourceName, error) {
-	if requested == "" || requested == "all" {
-		available := make([]scraper.SourceName, 0, len(scraper.AllSources))
-		for _, source := range scraper.AllSources {
-			if _, ok := active[source]; ok {
-				continue
-			}
-			available = append(available, source)
+	defer func() {
+		if err := m.rdb.ReleaseCrawlLock(ctx, source); err != nil {
+			slog.Error(string(LogEventLockReleaseFailed), "source", source, "error", err)
 		}
-		if len(available) == 0 {
-			return nil, ErrAllSourcesRunning
-		}
-		return available, nil
-	}
+	}()
 
-	source := scraper.SourceName(requested)
-	if !scraper.IsValidSource(source) {
-		return nil, ErrInvalidSource
-	}
-	if _, ok := active[source]; ok {
-		return nil, ErrSourceAlreadyRunning
-	}
-
-	return []scraper.SourceName{source}, nil
-}
-
-func writeJSON(w http.ResponseWriter, status int, payload any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(payload); err != nil {
-		slog.Error(string(LogEventHTTPResponseWriteFailed), "error", err)
+	if err := m.runner.Run(ctx, source, crawlID); err != nil {
+		slog.Error(string(LogEventCrawlFailed), "source", source, "crawlId", crawlID, "error", err)
+		_ = m.rdb.PublishError(ctx, crawlID, err)
 	}
 }
