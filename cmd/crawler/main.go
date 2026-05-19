@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -9,8 +10,8 @@ import (
 
 	"github.com/joho/godotenv"
 
-	"libri-crawler/internal/api"
 	"libri-crawler/internal/downloader"
+	"libri-crawler/internal/redis"
 )
 
 const (
@@ -30,7 +31,7 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
 	slog.SetDefault(logger)
 
-	slog.Info(string(LogEventCrawlerInitialized), "log_level", level.String())
+	slog.Debug(string(LogEventCrawlerInitialized), "log_level", level.String())
 
 	if err := loadEnv(); err != nil {
 		fatal(LogEventRequiredEnvMissing, err)
@@ -42,14 +43,19 @@ func main() {
 		fatal(LogEventStorageInitializationFailed, err)
 	}
 
+	rdb, err := redis.NewFromEnv()
+	if err != nil {
+		fatal(LogEventRedisInitializationFailed, err)
+	}
+	if err := rdb.Ping(context.Background()); err != nil {
+		fatal(LogEventRedisInitializationFailed, err)
+	}
+	defer rdb.Close()
+
 	runner := &Runner{
 		HTTPClient: httpClient,
 		Store:      store,
-		APIClient: &api.APIClient{
-			BaseURL:    os.Getenv("API_URL"),
-			APIKey:     os.Getenv("INTERNAL_API_KEY"),
-			HTTPClient: httpClient,
-		},
+		Redis:      rdb,
 	}
 
 	manager := NewCrawlManager(runner)
@@ -82,7 +88,7 @@ func resolveLogLevel(raw string) slog.Level {
 func loadEnv() error {
 	_ = godotenv.Load()
 
-	for _, v := range []string{"API_URL", "INTERNAL_API_KEY", "IMAGES_DIR"} {
+	for _, v := range []string{"REDIS_ADDR", "IMAGES_DIR"} {
 		if os.Getenv(v) == "" {
 			return fmt.Errorf("%s is not set", v)
 		}

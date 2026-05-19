@@ -8,31 +8,31 @@ import (
 	"sync/atomic"
 	"time"
 
-	"libri-crawler/internal/api"
 	"libri-crawler/internal/downloader"
+	"libri-crawler/internal/redis"
 	"libri-crawler/internal/scraper"
 )
 
 const (
 	scraperWorkers    = 10
 	downloaderWorkers = 100
-	saverWorkers      = 3
+	publisherWorkers  = 3
 )
 
 type Runner struct {
 	HTTPClient *http.Client
 	Store      *downloader.LocalStorage
-	APIClient  *api.APIClient
+	Redis      *redis.Client
 }
 
-func (r *Runner) Run(ctx context.Context, source scraper.SourceName) error {
+func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID string) error {
 	start := time.Now()
-	slog.Info(string(LogEventCrawlStarted), "source", source)
+	slog.Debug(string(LogEventCrawlStarted), "source", source, "crawl_id", crawlID)
 
 	var totalProcessed atomic.Int64
 
 	cache := scraper.NewURLCache(100_000)
-	s := &scraper.Scraper{Client: r.HTTPClient, Cache: cache, API: r.APIClient}
+	s := &scraper.Scraper{Client: r.HTTPClient, Cache: cache}
 	dl := &downloader.Downloader{Store: r.Store, Client: r.HTTPClient}
 
 	rootTask, ok := sourceTasks(s)[source]
@@ -43,19 +43,25 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName) error {
 	var wg sync.WaitGroup
 	var scraperWg sync.WaitGroup
 	var activeTasks sync.WaitGroup
-	var saveErrOnce sync.Once
-	var saveErr error
-	recordSaveErr := func(err error) {
+	var globalErrOnce sync.Once
+	var globalErr error
+	recordGlobalErr := func(err error, event LogEvent, extra ...any) {
 		if err == nil {
 			return
 		}
-		saveErrOnce.Do(func() {
-			saveErr = err
+		r.Redis.PublishError(ctx, crawlID, err)
+
+		logArgs := []any{"source", source, "crawl_id", crawlID, "error", err}
+		logArgs = append(logArgs, extra...)
+		slog.Error(string(event), logArgs...)
+
+		globalErrOnce.Do(func() {
+			globalErr = err
 		})
 	}
 
 	tasksChan := make(chan scraper.Task, 10_000)
-	saveChan := make(chan scraper.ScrapedBook, 20_000)
+	publishChan := make(chan scraper.ScrapedBook, 20_000)
 	imagesChan := make(chan scraper.ScrapedBook, 50_000)
 
 	reportCtx, cancelReport := context.WithCancel(ctx)
@@ -75,41 +81,21 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName) error {
 					continue
 				}
 				lastReported = count
-				slog.Info(string(LogEventCrawlProgress), "source", source, "books_found", count)
+				slog.Debug(string(LogEventCrawlProgress), "source", source, "books_found", count)
+				err := r.Redis.PublishProgress(ctx, crawlID, count)
+				if err != nil {
+					recordGlobalErr(err, LogEventCrawlProgressPublishFailed, "books_found", count)
+				}
 			}
 		}
 	}()
 
-	for range saverWorkers {
+	for range publisherWorkers {
 		wg.Go(func() {
-			var batch []scraper.ScrapedBook
-			ticker := time.NewTicker(time.Second * 5)
-			defer ticker.Stop()
-
-			for {
-				select {
-				case b, ok := <-saveChan:
-					if !ok {
-						if len(batch) > 0 {
-							recordSaveErr(s.SaveBatch(ctx, batch))
-						}
-						return
-					}
-					batch = append(batch, b)
-					if len(batch) >= 100 {
-						recordSaveErr(s.SaveBatch(ctx, batch))
-						batch = nil
-					}
-				case <-ticker.C:
-					if len(batch) > 0 {
-						recordSaveErr(s.SaveBatch(ctx, batch))
-						batch = nil
-					}
-				case <-ctx.Done():
-					if len(batch) > 0 {
-						recordSaveErr(s.SaveBatch(context.Background(), batch))
-					}
-					return
+			for book := range publishChan {
+				err := r.Redis.PublishBook(ctx, book)
+				if err != nil {
+					recordGlobalErr(err, LogEventBookPublishFailed, "url", book.URL)
 				}
 			}
 		})
@@ -119,7 +105,7 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName) error {
 		wg.Go(func() {
 			for b := range imagesChan {
 				if err := dl.Download(ctx, b); err != nil {
-					slog.Error(string(LogEventImageDownloadFailed), "source", source, "isbn", b.ISBN, "error", err)
+					recordGlobalErr(err, LogEventImageDownloadFailed, "isbn", b.ISBN)
 				}
 			}
 		})
@@ -133,7 +119,7 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName) error {
 			for t := range tasksChan {
 				node, err := s.Fetch(ctx, t.URL)
 				if err != nil {
-					slog.Error(string(LogEventSourceFetchFailed), "source", source, "url", t.URL, "error", err)
+					recordGlobalErr(err, LogEventSourceFetchFailed, "url", t.URL)
 					activeTasks.Done()
 					continue
 				}
@@ -143,7 +129,7 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName) error {
 				totalProcessed.Add(int64(len(books)))
 
 				for _, b := range books {
-					saveChan <- b
+					publishChan <- b
 					imagesChan <- b
 				}
 
@@ -156,9 +142,9 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName) error {
 						}
 
 						if nt.Type == scraper.TypeBook {
-							exists, err := s.BookExists(ctx, nt.URL)
+							exists, err := r.Redis.IsBookURLKnown(ctx, nt.URL)
 							if err != nil {
-								slog.Error(string(LogEventBookExistsCheckFailed), "source", source, "url", nt.URL, "error", err)
+								recordGlobalErr(err, LogEventBookExistsCheckFailed, "url", nt.URL)
 								continue
 							}
 							if exists {
@@ -185,23 +171,27 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName) error {
 		close(tasksChan)
 
 		scraperWg.Wait()
-		close(saveChan)
+		close(publishChan)
 		close(imagesChan)
 	}()
 
 	wg.Wait()
-
+	finalTotal := totalProcessed.Load()
 	cancelReport()
 
-	if saveErr != nil {
-		slog.Error(string(LogEventBatchSaveFailed), "source", source, "error", saveErr)
-		return saveErr
+	if err := r.Redis.PublishCompleted(ctx, crawlID, finalTotal); err != nil {
+		recordGlobalErr(err, LogEventCrawlCompletedPublishFailed, "books_found", finalTotal)
 	}
 
-	slog.Info(
+	if globalErr != nil {
+		return globalErr
+	}
+
+	slog.Debug(
 		string(LogEventCrawlCompleted),
 		"source", source,
-		"books_found", totalProcessed.Load(),
+		"crawl_id", crawlID,
+		"books_found", finalTotal,
 		"duration", time.Since(start).String(),
 	)
 

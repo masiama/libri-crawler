@@ -46,7 +46,7 @@ func newServer(manager *crawlManager) http.Handler {
 }
 
 func (m *crawlManager) handleCrawl(w http.ResponseWriter, r *http.Request) {
-	started, err := m.start(r.URL.Query().Get("source"))
+	started, err := m.start(r.URL.Query().Get("source"), r.URL.Query().Get("crawlId"))
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrAllSourcesRunning), errors.Is(err, ErrSourceAlreadyRunning):
@@ -69,7 +69,7 @@ func (m *crawlManager) handleCrawl(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusAccepted, response)
 }
 
-func (m *crawlManager) start(rawSource string) ([]scraper.SourceName, error) {
+func (m *crawlManager) start(rawSource, crawlId string) ([]scraper.SourceName, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -80,21 +80,21 @@ func (m *crawlManager) start(rawSource string) ([]scraper.SourceName, error) {
 
 	for _, source := range requestedSources {
 		m.active[source] = struct{}{}
-		go m.run(source)
+		go m.run(source, crawlId)
 	}
 
 	return requestedSources, nil
 }
 
-func (m *crawlManager) run(source scraper.SourceName) {
+func (m *crawlManager) run(source scraper.SourceName, crawlId string) {
 	defer func() {
 		m.mu.Lock()
 		delete(m.active, source)
 		m.mu.Unlock()
 	}()
 
-	if err := m.runner.Run(context.Background(), source); err != nil {
-		slog.Error(string(LogEventCrawlFailed), "source", source, "error", err)
+	if err := m.runner.Run(context.Background(), source, crawlId); err != nil {
+		slog.Error(string(LogEventCrawlFailed), "source", source, "crawlId", crawlId, "error", err)
 	}
 }
 

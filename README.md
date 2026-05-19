@@ -1,14 +1,13 @@
 # Libri Crawler
 
-Go crawler that scrapes supported book sources, sends book metadata to
-[`libri-api`](https://github.com/masiama/libri-api), and downloads cover images to
-shared local storage.
+Go crawler that scrapes supported book sources, writes crawl events to Redis,
+and downloads cover images to shared local storage.
 
 ## Features
 
-- Concurrent scraping, saving, and image downloading
+- Concurrent scraping, Redis publishing, and image downloading
 - Structured JSON logging with `slog`
-- Internal API integration for batched book upserts
+- Redis-backed dedupe and crawl event publishing
 - Shared filesystem storage for downloaded covers
 
 ## Supported sources
@@ -19,7 +18,7 @@ shared local storage.
 ## Requirements
 
 - Go 1.26+
-- A running [`libri-api`](https://github.com/masiama/libri-api) instance
+- A running Redis instance
 - An images directory shared with `libri-api`
 
 ## Configuration
@@ -28,15 +27,10 @@ Set these environment variables before running:
 
 ```bash
 PORT=8081
-API_URL=http://localhost:8080
-INTERNAL_API_KEY=change-me
+REDIS_ADDR=localhost:6379
 IMAGES_DIR=/path/to/images
 LOG_LEVEL=info # optional: debug | info | warn | error
 ```
-
-`API_URL` should point to the
-[`libri-api`](https://github.com/masiama/libri-api) instance that exposes the
-internal crawler endpoints.
 
 ## Running locally
 

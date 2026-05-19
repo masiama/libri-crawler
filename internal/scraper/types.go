@@ -2,7 +2,6 @@ package scraper
 
 import (
 	"context"
-	"libri-crawler/internal/api"
 	"net/http"
 
 	"golang.org/x/net/html"
@@ -18,7 +17,6 @@ const (
 type Scraper struct {
 	Client *http.Client
 	Cache  *URLCache
-	API    *api.APIClient
 }
 
 type Task struct {
