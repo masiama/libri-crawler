@@ -27,9 +27,11 @@ shared local storage.
 Set these environment variables before running:
 
 ```bash
+PORT=8081
 API_URL=http://localhost:8080
 INTERNAL_API_KEY=change-me
-IMAGES_DIR=/absolute/path/to/images
+IMAGES_DIR=/path/to/images
+LOG_LEVEL=info # optional: debug | info | warn | error
 ```
 
 `API_URL` should point to the
@@ -38,7 +40,7 @@ internal crawler endpoints.
 
 ## Running locally
 
-Run the crawler:
+Run the crawler server:
 
 ```bash
 make run
@@ -58,17 +60,16 @@ Clean build output:
 make clean
 ```
 
-## CLI options
+## Server
 
-The crawler entrypoint is `cmd/crawler`.
-
-Available flags:
-
-- `--source=<name|all>`
-- `--level=<debug|info|warn|error>`
-
-Example:
+Trigger a crawl with:
 
 ```bash
-go run ./cmd/crawler --source=kniga.lv --level=debug
+curl -X POST "http://localhost:8081/crawl"
+```
+
+To run a specific source:
+
+```bash
+curl -X POST "http://localhost:8081/crawl?source=kniga.lv"
 ```

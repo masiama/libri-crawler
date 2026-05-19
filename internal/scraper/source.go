@@ -1,6 +1,9 @@
 package scraper
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 type SourceName string
 
@@ -25,4 +28,8 @@ func GetSources() []string {
 
 func GetSourcesString() string {
 	return strings.Join(GetSources(), ", ")
+}
+
+func IsValidSource(source SourceName) bool {
+	return slices.Contains(AllSources, source)
 }
