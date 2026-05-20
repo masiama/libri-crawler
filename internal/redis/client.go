@@ -88,6 +88,11 @@ func (c *Client) PublishError(ctx context.Context, crawlID int64, err error) err
 	return c.publish(ctx, CrawlerEvent{Type: EventError, CrawlID: crawlID, Error: &errStr})
 }
 
+func (c *Client) PublishCrawlError(ctx context.Context, crawlID int64, err error) error {
+	errStr := err.Error()
+	return c.publish(ctx, CrawlerEvent{Type: EventCrawlError, CrawlID: crawlID, Error: &errStr})
+}
+
 func (c *Client) getLockKey(source scraper.SourceName) string {
 	return fmt.Sprintf("lock:crawler:%s", source)
 }

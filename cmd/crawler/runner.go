@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"sync"
@@ -44,21 +45,15 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 	var wg sync.WaitGroup
 	var scraperWg sync.WaitGroup
 	var activeTasks sync.WaitGroup
-	var globalErrOnce sync.Once
-	var globalErr error
 	recordGlobalErr := func(err error, event LogEvent, extra ...any) {
 		if err == nil {
 			return
 		}
-		r.Redis.PublishError(ctx, crawlID, err)
+		_ = r.Redis.PublishCrawlError(ctx, crawlID, err)
 
 		logArgs := []any{"source", source, "crawl_id", crawlID, "error", err}
 		logArgs = append(logArgs, extra...)
 		slog.Error(string(event), logArgs...)
-
-		globalErrOnce.Do(func() {
-			globalErr = err
-		})
 	}
 
 	tasksChan := make(chan scraper.Task, 10_000)
@@ -85,7 +80,7 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 				slog.Debug(string(LogEventCrawlProgress), "source", source, "books_found", count)
 				err := r.Redis.PublishProgress(ctx, crawlID, count)
 				if err != nil {
-					recordGlobalErr(err, LogEventCrawlProgressPublishFailed, "books_found", count)
+					slog.Error(string(LogEventCrawlProgressPublishFailed), "source", source, "crawl_id", crawlID, "error", err, "books_found", count)
 				}
 			}
 		}
@@ -181,11 +176,7 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 	cancelReport()
 
 	if err := r.Redis.PublishCompleted(ctx, crawlID, finalTotal); err != nil {
-		recordGlobalErr(err, LogEventCrawlCompletedPublishFailed, "books_found", finalTotal)
-	}
-
-	if globalErr != nil {
-		return globalErr
+		return fmt.Errorf("failed to publish completed event: %w", err)
 	}
 
 	slog.Debug(

@@ -5,10 +5,11 @@ import "libri-crawler/internal/scraper"
 type EventType string
 
 const (
-	EventBook      EventType = "book"
-	EventProgress  EventType = "progress"
-	EventCompleted EventType = "completed"
-	EventError     EventType = "error"
+	EventBook       EventType = "book"
+	EventProgress   EventType = "progress"
+	EventCompleted  EventType = "completed"
+	EventError      EventType = "error"
+	EventCrawlError EventType = "crawl_error"
 )
 
 type CrawlerEvent struct {
