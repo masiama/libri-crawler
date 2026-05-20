@@ -28,25 +28,33 @@ var levelMap = map[string]slog.Level{
 	"error": slog.LevelError,
 }
 
+type Config struct {
+	RedisAddr string
+	ImagesDir string
+	LogLevel  string
+}
+
 func main() {
-	level := resolveLogLevel(os.Getenv("LOG_LEVEL"))
+	cfg, err := loadEnv()
+	if err != nil {
+		fmt.Printf("Startup error: %v\n", err)
+		os.Exit(1)
+	}
+
+	level := resolveLogLevel(cfg.LogLevel)
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
 	slog.SetDefault(logger)
 
 	slog.Debug(string(LogEventCrawlerInitialized), "log_level", level.String())
 
-	if err := loadEnv(); err != nil {
-		fatal(LogEventRequiredEnvMissing, err)
-	}
-
 	transport := &http.Transport{MaxIdleConns: maxIdleConns, MaxIdleConnsPerHost: maxIdleConnsPerHost, IdleConnTimeout: idleConnTimeout}
 	httpClient := &http.Client{Timeout: apiTimeout, Transport: transport}
-	store, err := downloader.NewStorage()
+	store, err := downloader.NewStorage(cfg.ImagesDir) 
 	if err != nil {
 		fatal(LogEventStorageInitializationFailed, err)
 	}
 
-	rdb, err := redis.NewFromEnv()
+	rdb, err := redis.NewClient(cfg.RedisAddr) 
 	if err != nil {
 		fatal(LogEventRedisInitializationFailed, err)
 	}
@@ -88,16 +96,23 @@ func resolveLogLevel(raw string) slog.Level {
 	return level
 }
 
-func loadEnv() error {
+func loadEnv() (Config, error) {
 	_ = godotenv.Load()
 
-	for _, v := range []string{"REDIS_ADDR", "IMAGES_DIR"} {
-		if os.Getenv(v) == "" {
-			return fmt.Errorf("%s is not set", v)
-		}
+	cfg := Config{
+		RedisAddr: os.Getenv("REDIS_ADDR"),
+		ImagesDir: os.Getenv("IMAGES_DIR"),
+		LogLevel:  os.Getenv("LOG_LEVEL"),
 	}
 
-	return nil
+	if cfg.RedisAddr == "" {
+		return cfg, fmt.Errorf("REDIS_ADDR is not set")
+	}
+	if cfg.ImagesDir == "" {
+		return cfg, fmt.Errorf("IMAGES_DIR is not set")
+	}
+
+	return cfg, nil
 }
 
 func fatal(event LogEvent, err error, attrs ...any) {

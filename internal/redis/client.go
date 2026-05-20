@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"time"
 
 	"libri-crawler/internal/scraper"
@@ -22,14 +21,8 @@ type Client struct {
 	rdb *redis.Client
 }
 
-func NewFromEnv() (*Client, error) {
-	redisAddr := os.Getenv("REDIS_ADDR")
-	if redisAddr == "" {
-		return nil, fmt.Errorf("REDIS_ADDR is not set")
-	}
-
-	rdb := redis.NewClient(&redis.Options{Addr: redisAddr})
-
+func NewClient(addr string) (*Client, error) {
+	rdb := redis.NewClient(&redis.Options{Addr: addr})
 	return &Client{rdb}, nil
 }
 

@@ -8,14 +8,15 @@ import (
 	"libri-crawler/internal/scraper"
 	"os"
 	"path/filepath"
+	"sync"
 )
 
 type LocalStorage struct {
 	RootDir string
+	createdDirs sync.Map
 }
 
-func NewStorage() (*LocalStorage, error) {
-	dir := os.Getenv("IMAGES_DIR")
+func NewStorage(dir string) (*LocalStorage, error) {
 	if dir == "" {
 		return nil, fmt.Errorf("IMAGES_DIR is not set")
 	}
@@ -28,8 +29,11 @@ func NewStorage() (*LocalStorage, error) {
 func (l *LocalStorage) Save(ctx context.Context, book scraper.ScrapedBook, data io.Reader) error {
 	dir, fullPath := l.getShardedPath(book)
 
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("create directory %s: %w", dir, err)
+	if _, exists := l.createdDirs.Load(dir); !exists {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("create directory %s: %w", dir, err)
+		}
+		l.createdDirs.Store(dir, struct{}{})
 	}
 
 	f, err := os.Create(fullPath)

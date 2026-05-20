@@ -3,8 +3,10 @@ package downloader
 import (
 	"context"
 	"fmt"
-	"libri-crawler/internal/scraper"
 	"net/http"
+	"time"
+
+	"libri-crawler/internal/scraper"
 )
 
 type Downloader struct {
@@ -17,20 +19,32 @@ func (d *Downloader) Download(ctx context.Context, book scraper.ScrapedBook) err
 		return nil
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", book.ImageURL, nil)
-	if err != nil {
-		return err
+	var lastErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		if attempt > 0 {
+			time.Sleep(time.Duration(attempt) * 500 * time.Millisecond)
+		}
+
+		req, err := http.NewRequestWithContext(ctx, "GET", book.ImageURL, nil)
+		if err != nil {
+			return err
+		}
+
+		resp, err := d.Client.Do(req)
+		if err == nil {
+			defer resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				return d.Store.Save(ctx, book, resp.Body)
+			}
+			lastErr = fmt.Errorf("bad status: %s", resp.Status)
+			
+			if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+				return lastErr
+			}
+		} else {
+			lastErr = err
+		}
 	}
 
-	resp, err := d.Client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("bad status: %s", resp.Status)
-	}
-
-	return d.Store.Save(ctx, book, resp.Body)
+	return fmt.Errorf("download failed after 3 attempts: %w", lastErr)
 }
