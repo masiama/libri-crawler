@@ -15,8 +15,10 @@ import (
 )
 
 const (
-	apiTimeout  = 60 * time.Second
-	defaultPort = "8081"
+	apiTimeout          = 60 * time.Second
+	maxIdleConns        = 100
+	maxIdleConnsPerHost = 10
+	idleConnTimeout     = 90 * time.Second
 )
 
 var levelMap = map[string]slog.Level{
@@ -37,7 +39,8 @@ func main() {
 		fatal(LogEventRequiredEnvMissing, err)
 	}
 
-	httpClient := &http.Client{Timeout: apiTimeout}
+	transport := &http.Transport{MaxIdleConns: maxIdleConns, MaxIdleConnsPerHost: maxIdleConnsPerHost, IdleConnTimeout: idleConnTimeout}
+	httpClient := &http.Client{Timeout: apiTimeout, Transport: transport}
 	store, err := downloader.NewStorage()
 	if err != nil {
 		fatal(LogEventStorageInitializationFailed, err)
