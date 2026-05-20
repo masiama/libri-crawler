@@ -68,7 +68,14 @@ func (c *Client) ReleaseCrawlLock(ctx context.Context, source scraper.SourceName
 }
 
 func (c *Client) IsBookURLKnown(ctx context.Context, bookURL string) (bool, error) {
-	return c.rdb.SIsMember(ctx, BOOK_URLS_SET, bookURL).Result()
+	res, err := c.rdb.Do(ctx, "BF.EXISTS", BOOK_URLS_SET, bookURL).Bool()
+	if err != nil {
+		if err.Error() == "ERR not found" {
+			return false, nil
+		}
+		return false, err
+	}
+	return res, nil
 }
 
 func (c *Client) PublishBook(ctx context.Context, crawlID int64, book scraper.ScrapedBook) error {
