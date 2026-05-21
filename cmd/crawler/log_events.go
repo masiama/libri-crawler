@@ -7,6 +7,7 @@ const (
 	LogEventCrawlerDaemonStarted        LogEvent = "crawler_daemon_started"
 	LogEventRedisInitializationFailed   LogEvent = "redis_initialization_failed"
 	LogEventRedisCommandFetchFailed     LogEvent = "redis_command_fetch_failed"
+	LogEventRedisCloseFailed            LogEvent = "redis_close_failed"
 	LogEventCommandReceived             LogEvent = "command_received"
 	LogEventLockAcquisitionFailed       LogEvent = "lock_acquisition_failed"
 	LogEventLockExtensionFailed         LogEvent = "lock_extension_failed"

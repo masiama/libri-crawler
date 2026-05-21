@@ -37,7 +37,11 @@ func (l *LocalStorage) Save(ctx context.Context, book scraper.ScrapedBook, data 
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 	_, err = io.Copy(f, data)
 	return err
 }

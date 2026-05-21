@@ -53,7 +53,11 @@ func main() {
 	if err := rdb.Ping(context.Background()); err != nil {
 		fatal(LogEventRedisInitializationFailed, err)
 	}
-	defer rdb.Close()
+	defer func() {
+		if err := rdb.Close(); err != nil {
+			slog.Error(string(LogEventRedisCloseFailed), "error", err)
+		}
+	}()
 
 	runner := &Runner{
 		HTTPClient: httpClient,
