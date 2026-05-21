@@ -92,9 +92,9 @@ func (c *Client) PublishError(ctx context.Context, crawlID int64, err error) err
 	return c.publish(ctx, CrawlerEvent{Type: EventError, CrawlID: crawlID, Error: &errStr})
 }
 
-func (c *Client) PublishCrawlError(ctx context.Context, crawlID int64, err error) error {
+func (c *Client) PublishCrawlError(ctx context.Context, crawlID int64, err error, url *string) error {
 	errStr := err.Error()
-	return c.publish(ctx, CrawlerEvent{Type: EventCrawlError, CrawlID: crawlID, Error: &errStr})
+	return c.publish(ctx, CrawlerEvent{Type: EventCrawlError, CrawlID: crawlID, Error: &errStr, URL: url})
 }
 
 func (c *Client) GetCancel(ctx context.Context, source scraper.SourceName) (bool, error) {

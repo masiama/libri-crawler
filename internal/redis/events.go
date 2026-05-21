@@ -18,6 +18,7 @@ type CrawlerEvent struct {
 	CrawlID    int64                `json:"crawlId"`
 	BooksFound *int64               `json:"booksFound,omitempty"`
 	Error      *string              `json:"error,omitempty"`
+	URL        *string              `json:"url,omitempty"`
 	Book       *scraper.ScrapedBook `json:"book,omitempty"`
 }
 

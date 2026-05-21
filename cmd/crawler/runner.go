@@ -46,15 +46,12 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 	var wg sync.WaitGroup
 	var scraperWg sync.WaitGroup
 	var activeTasks sync.WaitGroup
-	recordGlobalErr := func(err error, event LogEvent, extra ...any) {
+	recordGlobalErr := func(err error, event LogEvent, url *string) {
 		if err == nil {
 			return
 		}
-		_ = r.Redis.PublishCrawlError(ctx, crawlID, err)
-
-		logArgs := []any{"source", source, "crawl_id", crawlID, "error", err}
-		logArgs = append(logArgs, extra...)
-		slog.Error(string(event), logArgs...)
+		_ = r.Redis.PublishCrawlError(ctx, crawlID, err, url)
+		slog.Error(string(event), "source", source, "crawl_id", crawlID, "error", err, "url", url)
 	}
 
 	tasksChan := make(chan scraper.Task, 10_000)
@@ -92,7 +89,7 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 			for book := range publishChan {
 				err := r.Redis.PublishBook(ctx, crawlID, book)
 				if err != nil {
-					recordGlobalErr(err, LogEventBookPublishFailed, "url", book.URL)
+					recordGlobalErr(err, LogEventBookPublishFailed, &book.URL)
 				}
 			}
 		})
@@ -102,7 +99,7 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 		wg.Go(func() {
 			for b := range imagesChan {
 				if err := dl.Download(ctx, b); err != nil {
-					recordGlobalErr(err, LogEventImageDownloadFailed, "isbn", b.ISBN)
+					recordGlobalErr(err, LogEventImageDownloadFailed, &b.URL)
 				}
 			}
 		})
@@ -122,7 +119,7 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 
 				node, err := s.Fetch(ctx, t.URL)
 				if err != nil {
-					recordGlobalErr(err, LogEventSourceFetchFailed, "url", t.URL)
+					recordGlobalErr(err, LogEventSourceFetchFailed, &t.URL)
 					activeTasks.Done()
 					continue
 				}
@@ -147,7 +144,7 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 						if nt.Type == scraper.TypeBook {
 							exists, err := r.Redis.IsBookURLKnown(ctx, nt.URL)
 							if err != nil {
-								recordGlobalErr(err, LogEventBookExistsCheckFailed, "url", nt.URL)
+								recordGlobalErr(err, LogEventBookExistsCheckFailed, &nt.URL)
 								continue
 							}
 							if exists {
