@@ -34,8 +34,7 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 	var totalProcessed atomic.Int64
 	var cancelled atomic.Bool
 
-	cache := scraper.NewURLCache(100_000)
-	s := &scraper.Scraper{Client: r.HTTPClient, Cache: cache}
+	s := &scraper.Scraper{Client: r.HTTPClient}
 	dl := &downloader.Downloader{Store: r.Store, Client: r.HTTPClient}
 
 	rootTask, ok := sourceTasks(s)[source]
@@ -137,7 +136,12 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 				go func(tasksToAdd []scraper.Task) {
 					defer activeTasks.Done()
 					for _, nt := range tasksToAdd {
-						if s.Cache.Seen(nt.URL) {
+						seen, err := r.Redis.SeenURL(ctx, crawlID, nt.URL)
+						if err != nil {
+							recordGlobalErr(err, LogEventSeenURLCheckFailed, &nt.URL)
+							continue
+						}
+						if seen {
 							continue
 						}
 
@@ -183,11 +187,18 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 		if err := r.Redis.PublishCancelled(ctx, crawlID, finalTotal); err != nil {
 			return fmt.Errorf("failed to publish cancelled event: %w", err)
 		}
+		if err := r.Redis.ClearSeenURLs(ctx, crawlID); err != nil {
+			slog.Error(string(LogEventSeenURLClearFailed), "crawl_id", crawlID, "error", err)
+		}
 		return nil
 	}
 
 	if err := r.Redis.PublishCompleted(ctx, crawlID, finalTotal); err != nil {
 		return fmt.Errorf("failed to publish completed event: %w", err)
+	}
+
+	if err := r.Redis.ClearSeenURLs(ctx, crawlID); err != nil {
+		slog.Error(string(LogEventSeenURLClearFailed), "crawl_id", crawlID, "error", err)
 	}
 
 	slog.Debug(

@@ -16,7 +16,6 @@ const (
 
 type Scraper struct {
 	Client *http.Client
-	Cache  *URLCache
 }
 
 type Task struct {

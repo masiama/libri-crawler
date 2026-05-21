@@ -55,6 +55,9 @@ func (m *crawlManager) executeJob(source scraper.SourceName, crawlID int64) {
 				if err := m.rdb.ExtendCrawlLock(ctx, source, 10*time.Minute); err != nil {
 					slog.Error(string(LogEventLockExtensionFailed), "source", source, "error", err)
 				}
+				if err := m.rdb.ExtendSeenURLs(ctx, crawlID, 10*time.Minute); err != nil {
+					slog.Error(string(LogEventSeenURLExtensionFailed), "crawl_id", crawlID, "error", err)
+				}
 			case <-cancelCtx.Done():
 				return
 			}

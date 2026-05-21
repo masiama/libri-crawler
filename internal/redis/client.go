@@ -13,10 +13,22 @@ import (
 )
 
 const (
-	COMMANDS_QUEUE = "crawler:commands"
-	EVENTS_QUEUE   = "crawl:events"
-	BOOK_URLS_SET  = "books:existing_urls"
+	commandsQueue = "crawler:commands"
+	eventsQueue   = "crawler:events"
+	existingURLs  = "books:existing_urls"
 )
+
+func lockKey(source scraper.SourceName) string {
+	return fmt.Sprintf("crawler:lock:%s", source)
+}
+
+func cancelKey(source scraper.SourceName) string {
+	return fmt.Sprintf("crawler:cancel:%s", source)
+}
+
+func seenURLsKey(crawlID int64) string {
+	return fmt.Sprintf("crawler:seen_urls:%d", crawlID)
+}
 
 type Client struct {
 	rdb *redis.Client
@@ -42,7 +54,7 @@ func (c *Client) Close() error {
 }
 
 func (c *Client) ListenForCommands(ctx context.Context) (*crawlerCommand, error) {
-	results, err := c.rdb.BLPop(ctx, 0, COMMANDS_QUEUE).Result()
+	results, err := c.rdb.BLPop(ctx, 0, commandsQueue).Result()
 	if err != nil {
 		return nil, err
 	}
@@ -56,19 +68,19 @@ func (c *Client) ListenForCommands(ctx context.Context) (*crawlerCommand, error)
 }
 
 func (c *Client) AcquireCrawlLock(ctx context.Context, source scraper.SourceName, ttl time.Duration) (bool, error) {
-	return c.rdb.SetNX(ctx, c.getLockKey(source), "active", ttl).Result()
+	return c.rdb.SetNX(ctx, lockKey(source), "active", ttl).Result()
 }
 
 func (c *Client) ExtendCrawlLock(ctx context.Context, source scraper.SourceName, ttl time.Duration) error {
-	return c.rdb.Expire(ctx, c.getLockKey(source), ttl).Err()
+	return c.rdb.Expire(ctx, lockKey(source), ttl).Err()
 }
 
 func (c *Client) ReleaseCrawlLock(ctx context.Context, source scraper.SourceName) error {
-	return c.rdb.Del(ctx, c.getLockKey(source)).Err()
+	return c.rdb.Del(ctx, lockKey(source)).Err()
 }
 
 func (c *Client) IsBookURLKnown(ctx context.Context, bookURL string) (bool, error) {
-	return c.rdb.SIsMember(ctx, BOOK_URLS_SET, bookURL).Result()
+	return c.rdb.SIsMember(ctx, existingURLs, bookURL).Result()
 }
 
 func (c *Client) PublishBook(ctx context.Context, crawlID int64, book scraper.ScrapedBook) error {
@@ -98,7 +110,7 @@ func (c *Client) PublishCrawlError(ctx context.Context, crawlID int64, err error
 }
 
 func (c *Client) GetCancel(ctx context.Context, source scraper.SourceName) (bool, error) {
-	val, err := c.rdb.Get(ctx, fmt.Sprintf("crawl:cancel:%s", source)).Result()
+	val, err := c.rdb.Get(ctx, cancelKey(source)).Result()
 	if err != nil {
 		if err == redis.Nil {
 			return false, nil
@@ -108,8 +120,24 @@ func (c *Client) GetCancel(ctx context.Context, source scraper.SourceName) (bool
 	return val == "1", nil
 }
 
-func (c *Client) getLockKey(source scraper.SourceName) string {
-	return fmt.Sprintf("lock:crawler:%s", source)
+func (c *Client) SeenURL(ctx context.Context, crawlID int64, url string) (bool, error) {
+	key := seenURLsKey(crawlID)
+	added, err := c.rdb.SAdd(ctx, key, url).Result()
+	if err != nil {
+		return false, err
+	}
+	if added == 1 {
+		c.rdb.Expire(ctx, key, 10*time.Minute)
+	}
+	return added == 0, nil
+}
+
+func (c *Client) ExtendSeenURLs(ctx context.Context, crawlID int64, ttl time.Duration) error {
+	return c.rdb.Expire(ctx, seenURLsKey(crawlID), ttl).Err()
+}
+
+func (c *Client) ClearSeenURLs(ctx context.Context, crawlID int64) error {
+	return c.rdb.Del(ctx, seenURLsKey(crawlID)).Err()
 }
 
 func (c *Client) publish(ctx context.Context, event CrawlerEvent) error {
@@ -117,5 +145,5 @@ func (c *Client) publish(ctx context.Context, event CrawlerEvent) error {
 	if err != nil {
 		return err
 	}
-	return c.rdb.LPush(ctx, EVENTS_QUEUE, jsonBytes).Err()
+	return c.rdb.LPush(ctx, eventsQueue, jsonBytes).Err()
 }
