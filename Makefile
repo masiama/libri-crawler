@@ -8,8 +8,12 @@ run:
 clean:
 	rm -rf bin/
 
-check:
+ci-check:
 	go mod tidy
 	go fmt ./...
 	go vet ./...
+
+lint:
 	golangci-lint run
+
+check: ci-check lint

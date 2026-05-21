@@ -139,3 +139,7 @@ Clean build output:
 ```bash
 make clean
 ```
+
+## Development
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
