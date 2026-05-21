@@ -3,6 +3,7 @@ package downloader
 import (
 	"context"
 	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"libri-crawler/internal/scraper"
@@ -48,10 +49,10 @@ func (l *LocalStorage) Exists(ctx context.Context, book scraper.ScrapedBook) boo
 }
 
 func (l *LocalStorage) getShardedPath(book scraper.ScrapedBook) (string, string) {
-	hash := fmt.Sprintf("%x", md5.Sum([]byte(book.ISBN)))
+	sum := md5.Sum([]byte(book.ISBN))
 
-	shard1 := hash[:2]
-	shard2 := hash[2:4]
+	shard1 := hex.EncodeToString(sum[0:1])
+	shard2 := hex.EncodeToString(sum[1:2])
 
 	dir := filepath.Join(l.RootDir, shard1, shard2)
 	fullPath := filepath.Join(dir, book.ISBN+".jpg")
