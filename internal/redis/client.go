@@ -23,12 +23,12 @@ type Client struct {
 }
 
 func NewFromEnv() (*Client, error) {
-	redisAddr := os.Getenv("REDIS_ADDR")
-	if redisAddr == "" {
-		return nil, fmt.Errorf("REDIS_ADDR is not set")
+	opt, err := redis.ParseURL(os.Getenv("REDIS_URL"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse redis url: %w", err)
 	}
 
-	rdb := redis.NewClient(&redis.Options{Addr: redisAddr})
+	rdb := redis.NewClient(opt)
 
 	return &Client{rdb}, nil
 }

@@ -28,7 +28,7 @@ Redis, and downloads cover images to shared local storage.
 Set these environment variables before running:
 
 ```bash
-REDIS_ADDR=localhost:6379
+REDIS_URL=redis://localhost:6379
 IMAGES_DIR=/path/to/images
 LOG_LEVEL=info # optional: debug | info | warn | error
 ```

@@ -91,7 +91,7 @@ func resolveLogLevel(raw string) slog.Level {
 func loadEnv() error {
 	_ = godotenv.Load()
 
-	for _, v := range []string{"REDIS_ADDR", "IMAGES_DIR"} {
+	for _, v := range []string{"REDIS_URL", "IMAGES_DIR"} {
 		if os.Getenv(v) == "" {
 			return fmt.Errorf("%s is not set", v)
 		}
