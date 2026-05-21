@@ -83,6 +83,10 @@ func (c *Client) PublishCompleted(ctx context.Context, crawlID int64, booksFound
 	return c.publish(ctx, CrawlerEvent{Type: EventCompleted, CrawlID: crawlID, BooksFound: &booksFound})
 }
 
+func (c *Client) PublishCancelled(ctx context.Context, crawlID int64, booksFound int64) error {
+	return c.publish(ctx, CrawlerEvent{Type: EventCancelled, CrawlID: crawlID, BooksFound: &booksFound})
+}
+
 func (c *Client) PublishError(ctx context.Context, crawlID int64, err error) error {
 	errStr := err.Error()
 	return c.publish(ctx, CrawlerEvent{Type: EventError, CrawlID: crawlID, Error: &errStr})
@@ -91,6 +95,17 @@ func (c *Client) PublishError(ctx context.Context, crawlID int64, err error) err
 func (c *Client) PublishCrawlError(ctx context.Context, crawlID int64, err error) error {
 	errStr := err.Error()
 	return c.publish(ctx, CrawlerEvent{Type: EventCrawlError, CrawlID: crawlID, Error: &errStr})
+}
+
+func (c *Client) GetCancel(ctx context.Context, source scraper.SourceName) (bool, error) {
+	val, err := c.rdb.Get(ctx, fmt.Sprintf("crawl:cancel:%s", source)).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return false, nil
+		}
+		return false, err
+	}
+	return val == "1", nil
 }
 
 func (c *Client) getLockKey(source scraper.SourceName) string {

@@ -32,6 +32,7 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 	slog.Debug(string(LogEventCrawlStarted), "source", source, "crawl_id", crawlID)
 
 	var totalProcessed atomic.Int64
+	var cancelled atomic.Bool
 
 	cache := scraper.NewURLCache(100_000)
 	s := &scraper.Scraper{Client: r.HTTPClient, Cache: cache}
@@ -113,6 +114,12 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 			defer scraperWg.Done()
 
 			for t := range tasksChan {
+				if c, _ := r.Redis.GetCancel(ctx, source); c {
+					cancelled.Store(true)
+					activeTasks.Done()
+					continue
+				}
+
 				node, err := s.Fetch(ctx, t.URL)
 				if err != nil {
 					recordGlobalErr(err, LogEventSourceFetchFailed, "url", t.URL)
@@ -174,6 +181,13 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 	wg.Wait()
 	finalTotal := totalProcessed.Load()
 	cancelReport()
+
+	if cancelled.Load() {
+		if err := r.Redis.PublishCancelled(ctx, crawlID, finalTotal); err != nil {
+			return fmt.Errorf("failed to publish cancelled event: %w", err)
+		}
+		return nil
+	}
 
 	if err := r.Redis.PublishCompleted(ctx, crawlID, finalTotal); err != nil {
 		return fmt.Errorf("failed to publish completed event: %w", err)
