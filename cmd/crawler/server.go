@@ -3,11 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"log/slog"
-	"time"
-
 	"libri-crawler/internal/redis"
 	"libri-crawler/internal/scraper"
+	"log/slog"
+	"time"
 )
 
 type crawlManager struct {

@@ -2,7 +2,7 @@ package downloader
 
 import (
 	"context"
-	"fmt"
+	"libri-crawler/internal/fetcher"
 	"libri-crawler/internal/scraper"
 	"net/http"
 )
@@ -17,20 +17,10 @@ func (d *Downloader) Download(ctx context.Context, book scraper.ScrapedBook) err
 		return nil
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", book.ImageURL, nil)
+	data, err := fetcher.Request{Client: d.Client, URL: book.ImageURL}.Do(ctx)
 	if err != nil {
 		return err
 	}
-
-	resp, err := d.Client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("bad status: %s", resp.Status)
-	}
-
-	return d.Store.Save(ctx, book, resp.Body)
+	defer func() { _ = data.Close() }()
+	return d.Store.Save(ctx, book, data)
 }

@@ -4,10 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"libri-crawler/internal/scraper"
 	"os"
 	"time"
-
-	"libri-crawler/internal/scraper"
 
 	"github.com/redis/go-redis/v9"
 )

@@ -4,15 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"libri-crawler/internal/downloader"
+	"libri-crawler/internal/redis"
+	"libri-crawler/internal/scraper"
 	"log/slog"
 	"net/http"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"libri-crawler/internal/downloader"
-	"libri-crawler/internal/redis"
-	"libri-crawler/internal/scraper"
 )
 
 const (

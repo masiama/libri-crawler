@@ -2,15 +2,14 @@ package main
 
 import (
 	"context"
+	"libri-crawler/internal/downloader"
+	"libri-crawler/internal/redis"
 	"log/slog"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/joho/godotenv"
-
-	"libri-crawler/internal/downloader"
-	"libri-crawler/internal/redis"
 )
 
 const (
