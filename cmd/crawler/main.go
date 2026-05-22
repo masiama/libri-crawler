@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -35,8 +34,8 @@ func main() {
 
 	slog.Debug(string(LogEventCrawlerInitialized), "log_level", level.String())
 
-	if err := loadEnv(); err != nil {
-		fatal(LogEventRequiredEnvMissing, err)
+	if err := godotenv.Load(); err != nil {
+		fatal(LogEventLoadDotenvFailed, err)
 	}
 
 	transport := &http.Transport{MaxIdleConns: maxIdleConns, MaxIdleConnsPerHost: maxIdleConnsPerHost, IdleConnTimeout: idleConnTimeout}
@@ -90,18 +89,6 @@ func resolveLogLevel(raw string) slog.Level {
 		return slog.LevelInfo
 	}
 	return level
-}
-
-func loadEnv() error {
-	_ = godotenv.Load()
-
-	for _, v := range []string{"REDIS_URL", "IMAGES_DIR"} {
-		if os.Getenv(v) == "" {
-			return fmt.Errorf("%s is not set", v)
-		}
-	}
-
-	return nil
 }
 
 func fatal(event LogEvent, err error, attrs ...any) {

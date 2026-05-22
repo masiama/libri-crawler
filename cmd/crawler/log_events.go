@@ -28,5 +28,5 @@ const (
 	LogEventImageDownloadFailed         LogEvent = "image_download_failed"
 	LogEventStorageInitializationFailed LogEvent = "storage_initialization_failed"
 	LogEventInvalidSource               LogEvent = "invalid_source"
-	LogEventRequiredEnvMissing          LogEvent = "required_environment_variable_missing"
+	LogEventLoadDotenvFailed            LogEvent = "load_dotenv_failed"
 )
