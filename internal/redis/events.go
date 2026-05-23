@@ -11,6 +11,7 @@ const (
 	EventError      EventType = "error"
 	EventCrawlError EventType = "crawl_error"
 	EventCancelled  EventType = "cancelled"
+	EventHeartbeat  EventType = "heartbeat"
 )
 
 type CrawlerEvent struct {

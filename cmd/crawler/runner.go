@@ -82,6 +82,21 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 		}
 	}()
 
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-reportCtx.Done():
+				return
+			case <-ticker.C:
+				if err := r.Redis.PublishHeartbeat(ctx, crawlID); err != nil {
+					slog.Error(string(LogEventHeartbeatPublishFailed), "crawl_id", crawlID, "error", err)
+				}
+			}
+		}
+	}()
+
 	for range publisherWorkers {
 		wg.Go(func() {
 			for book := range publishChan {

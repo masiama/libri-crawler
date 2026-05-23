@@ -108,6 +108,10 @@ func (c *Client) PublishCrawlError(ctx context.Context, crawlID int64, err error
 	return c.publish(ctx, CrawlerEvent{Type: EventCrawlError, CrawlID: crawlID, Error: &errStr, URL: url})
 }
 
+func (c *Client) PublishHeartbeat(ctx context.Context, crawlID int64) error {
+	return c.publish(ctx, CrawlerEvent{Type: EventHeartbeat, CrawlID: crawlID})
+}
+
 func (c *Client) GetCancel(ctx context.Context, source scraper.SourceName) (bool, error) {
 	val, err := c.rdb.Get(ctx, cancelKey(source)).Result()
 	if err != nil {

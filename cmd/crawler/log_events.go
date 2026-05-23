@@ -29,4 +29,5 @@ const (
 	LogEventStorageInitializationFailed LogEvent = "storage_initialization_failed"
 	LogEventInvalidSource               LogEvent = "invalid_source"
 	LogEventLoadDotenvFailed            LogEvent = "load_dotenv_failed"
+	LogEventHeartbeatPublishFailed      LogEvent = "heartbeat_publish_failed"
 )
