@@ -10,11 +10,13 @@ type SourceName string
 const (
 	SourceKnigaLv   SourceName = "kniga.lv"
 	SourceMnogoknig SourceName = "mnogoknig.com"
+	SourceAzon      SourceName = "azon.market"
 )
 
 var AllSources = []SourceName{
 	SourceKnigaLv,
 	SourceMnogoknig,
+	SourceAzon,
 }
 
 func GetSources() []string {

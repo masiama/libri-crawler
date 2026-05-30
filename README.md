@@ -15,6 +15,7 @@ Redis, and downloads cover images to shared local storage.
 ## Supported sources
 
 - `kniga.lv`
+- `azon.market`
 - `mnogoknig.com`
 
 ## Requirements

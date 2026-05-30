@@ -60,6 +60,10 @@ func (r Request) fetch(ctx context.Context) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
+
+	// Set a User-Agent for azon.market
+	req.Header.Set("User-Agent", "libri-crawler")
+
 	resp, err := r.Client.Do(req)
 	if err != nil {
 		return nil, err

@@ -243,5 +243,10 @@ func sourceTasks(s *scraper.Scraper) map[scraper.SourceName]scraper.Task {
 			Type:    scraper.TypeDiscovery,
 			Handler: s.MnogoknigCategoryHandler,
 		},
+		scraper.SourceAzon: {
+			URL:     "https://azon.market/knigi?sort=pd.name&order=ASC&show_instock=2&limit=50",
+			Type:    scraper.TypeDiscovery,
+			Handler: s.AzonListingHandler,
+		},
 	}
 }
