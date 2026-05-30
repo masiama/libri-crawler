@@ -1,6 +1,7 @@
 package fetcher
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -63,12 +64,19 @@ func (r Request) fetch(ctx context.Context) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		_ = resp.Body.Close()
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<20))
 		return nil, &HTTPStatusError{StatusCode: resp.StatusCode, Status: resp.Status}
 	}
-	return resp.Body, nil
+
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return io.NopCloser(bytes.NewReader(b)), nil
 }
 
 func (r Request) wait(ctx context.Context, attempt int) error {
