@@ -137,7 +137,12 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 					continue
 				}
 
-				next, books, _ := t.Handler(ctx, node)
+				next, books, err := t.Handler(ctx, node)
+				if err != nil {
+					recordGlobalErr(err, LogEventSourceHandleFailed, &t.URL)
+					activeTasks.Done()
+					continue
+				}
 
 				totalProcessed.Add(int64(len(books)))
 

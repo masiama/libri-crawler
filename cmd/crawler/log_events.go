@@ -23,6 +23,7 @@ const (
 	LogEventCrawlFailed                 LogEvent = "crawl_failed"
 	LogEventCrawlRejectedDuplicate      LogEvent = "crawl_rejected_duplicate"
 	LogEventSourceFetchFailed           LogEvent = "source_fetch_failed"
+	LogEventSourceHandleFailed          LogEvent = "source_handle_failed"
 	LogEventBookExistsCheckFailed       LogEvent = "book_exists_check_failed"
 	LogEventBookPublishFailed           LogEvent = "book_publish_failed"
 	LogEventImageDownloadFailed         LogEvent = "image_download_failed"
