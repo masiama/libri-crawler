@@ -3,7 +3,6 @@ package scraper
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -96,14 +95,4 @@ func processNode(n *html.Node) []ScrapedBook {
 		ImageURL:   image,
 		Barcodes:   barcodes,
 	}}
-}
-
-var isbnRegex = regexp.MustCompile(`^[\d-]+$`)
-
-func processISBN(isbn string) string {
-	isbn = strings.TrimSpace(isbn)
-	if !isbnRegex.MatchString(isbn) {
-		return ""
-	}
-	return strings.ReplaceAll(isbn, "-", "")
 }

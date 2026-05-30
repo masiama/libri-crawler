@@ -2,23 +2,31 @@ package scraper
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/antchfx/htmlquery"
 	"golang.org/x/net/html"
 )
 
 func getMetaContent(n *html.Node, itemprop string) string {
-	metaNode, _ := htmlquery.Query(n, fmt.Sprintf(".//meta[@itemprop='%s']", itemprop))
-	if metaNode == nil {
-		return ""
-	}
-	return htmlquery.SelectAttr(metaNode, "content")
+	return getAttr(n, fmt.Sprintf("meta[@itemprop='%s']", itemprop), "content")
 }
 
-func getLinkHref(n *html.Node, itemprop string) string {
-	metaNode, _ := htmlquery.Query(n, fmt.Sprintf(".//link[@itemprop='%s']", itemprop))
-	if metaNode == nil {
+func getAttr(n *html.Node, selector, attr string) string {
+	node, _ := htmlquery.Query(n, fmt.Sprintf(".//%s", selector))
+	if node == nil {
 		return ""
 	}
-	return htmlquery.SelectAttr(metaNode, "href")
+	return htmlquery.SelectAttr(node, attr)
+}
+
+var isbnRegex = regexp.MustCompile(`^[\d-]+$`)
+
+func processISBN(isbn string) string {
+	isbn = strings.TrimSpace(isbn)
+	if !isbnRegex.MatchString(isbn) {
+		return ""
+	}
+	return strings.ReplaceAll(isbn, "-", "")
 }

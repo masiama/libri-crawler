@@ -69,9 +69,9 @@ func (s *Scraper) MnogoknigListingHandler(ctx context.Context, node *html.Node) 
 
 func (s *Scraper) MnogoknigBookHandler(ctx context.Context, node *html.Node) ([]Task, []ScrapedBook, error) {
 	isbn := getMetaContent(node, "sku")
-	image := getLinkHref(node, "image")
+	image := getAttr(node, "link[@itemprop='image']", "href")
 	title := getMetaContent(node, "name")
-	url := getLinkHref(node, "url")
+	url := getAttr(node, "link[@itemprop='url']", "href")
 	mpn := getMetaContent(node, "mpn")
 
 	authorNode, _ := htmlquery.Query(node, "//a[starts-with(@href,'https://mnogoknig.com/ru/author/')]")
