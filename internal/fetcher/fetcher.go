@@ -33,7 +33,9 @@ type Request struct {
 // Caller must close the returned body.
 func (r Request) Do(ctx context.Context) (io.ReadCloser, error) {
 	var lastErr error
+	var attempts int
 	for attempt := range maxAttempts {
+		attempts = attempt + 1
 		if attempt > 0 {
 			if err := r.wait(ctx, attempt); err != nil {
 				return nil, err
@@ -49,7 +51,7 @@ func (r Request) Do(ctx context.Context) (io.ReadCloser, error) {
 			break
 		}
 	}
-	return nil, fmt.Errorf("fetch %s failed after %d attempts: %w", r.URL, maxAttempts, lastErr)
+	return nil, fmt.Errorf("fetch %s failed after %d attempts: %w", r.URL, attempts, lastErr)
 }
 
 func (r Request) fetch(ctx context.Context) (io.ReadCloser, error) {
