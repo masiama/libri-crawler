@@ -60,4 +60,4 @@ jobs:
           TAGS=$(echo "${{ steps.meta.outputs.tags }}" | sed 's|.*:||' | paste -sd "," -)
           echo "tags=$TAGS" >> $GITHUB_OUTPUT
 
-      - run: ko build ./cmd/crawler --bare --tags=${{ steps.ko-tags.outputs.tags }}
+      - run: ko build ./cmd/crawler --bare --platform=linux/amd64,linux/arm64 --tags=${{ steps.ko-tags.outputs.tags }}
