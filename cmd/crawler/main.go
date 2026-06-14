@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"libri-crawler/internal/downloader"
 	"libri-crawler/internal/redis"
 	"log/slog"
@@ -33,7 +34,7 @@ func main() {
 
 	slog.Debug(string(LogEventCrawlerInitialized), "log_level", level.String())
 
-	if err := godotenv.Load(); err != nil {
+	if err := godotenv.Load(); err != nil && !errors.Is(err, os.ErrNotExist) {
 		fatal(LogEventLoadDotenvFailed, err)
 	}
 
