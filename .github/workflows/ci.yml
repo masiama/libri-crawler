@@ -61,3 +61,19 @@ jobs:
           echo "tags=$TAGS" >> $GITHUB_OUTPUT
 
       - run: ko build ./cmd/crawler --bare --platform=linux/amd64,linux/arm64 --tags=${{ steps.ko-tags.outputs.tags }}
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          script: |
+            cd /opt/libri
+            docker compose pull crawler
+            docker compose up -d crawler
+            docker image prune -f
