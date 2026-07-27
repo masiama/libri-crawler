@@ -61,8 +61,7 @@ func (r Request) fetch(ctx context.Context) (io.ReadCloser, error) {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// Set a User-Agent for azon.market
-	req.Header.Set("User-Agent", "libri-crawler")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
 
 	resp, err := r.Client.Do(req)
 	if err != nil {
@@ -105,7 +104,8 @@ func (r Request) isRetryable(err error) bool {
 		return httpErr.StatusCode == http.StatusBadGateway ||
 			httpErr.StatusCode == http.StatusServiceUnavailable ||
 			httpErr.StatusCode == http.StatusGatewayTimeout ||
-			httpErr.StatusCode == http.StatusTooManyRequests
+			httpErr.StatusCode == http.StatusTooManyRequests ||
+			httpErr.StatusCode == http.StatusForbidden
 	}
 
 	if netErr, ok := errors.AsType[net.Error](err); ok {
