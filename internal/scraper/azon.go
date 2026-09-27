@@ -2,16 +2,22 @@ package scraper
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/antchfx/htmlquery"
 	"golang.org/x/net/html"
 )
 
+const (
+	azonProductLinkXPath = "//a[@class='pname']"
+	azonNextPageXPath    = "//link[@rel='next']"
+)
+
 func (s *Scraper) AzonListingHandler(ctx context.Context, node *html.Node) ([]Task, []ScrapedBook, error) {
-	nodes, _ := htmlquery.QueryAll(node, "//a[@class='pname']")
+	nodes, _ := htmlquery.QueryAll(node, azonProductLinkXPath)
 	if len(nodes) == 0 {
-		return nil, nil, nil
+		return nil, nil, fmt.Errorf("no product links found, selector may be broken: %s", azonProductLinkXPath)
 	}
 
 	var nextTasks []Task
@@ -26,7 +32,7 @@ func (s *Scraper) AzonListingHandler(ctx context.Context, node *html.Node) ([]Ta
 		}
 	}
 
-	nextNode, _ := htmlquery.Query(node, "//link[@rel='next']")
+	nextNode, _ := htmlquery.Query(node, azonNextPageXPath)
 	if nextNode != nil {
 		nextTasks = append(nextTasks, Task{
 			URL:     htmlquery.SelectAttr(nextNode, "href"),

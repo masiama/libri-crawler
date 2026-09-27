@@ -10,10 +10,18 @@ import (
 	"golang.org/x/net/html"
 )
 
+const (
+	knigaProductCardXPath         = "//div[@class='app-product-card']"
+	knigaPaginationContainerXPath = "//div[@class='app-pagination']"
+	knigaPaginationFirstXPath     = "./a[1]"
+	knigaPaginationLastXPath      = "./a[last()-1]"
+	knigaAuthorXPath              = ".//div[@class='product-author']"
+)
+
 func (s *Scraper) KnigaListingHandler(ctx context.Context, node *html.Node) ([]Task, []ScrapedBook, error) {
-	nodes, _ := htmlquery.QueryAll(node, "//div[@class='app-product-card']")
+	nodes, _ := htmlquery.QueryAll(node, knigaProductCardXPath)
 	if len(nodes) == 0 {
-		return nil, nil, nil
+		return nil, nil, fmt.Errorf("no product cards found, selector may be broken: %s", knigaProductCardXPath)
 	}
 
 	var books []ScrapedBook
@@ -23,10 +31,24 @@ func (s *Scraper) KnigaListingHandler(ctx context.Context, node *html.Node) ([]T
 	}
 
 	var nextTasks []Task
-	firstNode, _ := htmlquery.Query(node, "//div[@class='app-pagination']/a[1]")
-	lastNode, _ := htmlquery.Query(node, "//div[@class='app-pagination']/a[last()-1]")
-	if firstNode != nil && htmlquery.SelectAttr(firstNode, "class") == "active" && lastNode != nil {
-		if lastPageNum, err := strconv.Atoi(htmlquery.InnerText(lastNode)); err == nil {
+	paginationNode, _ := htmlquery.Query(node, knigaPaginationContainerXPath)
+	if paginationNode != nil {
+		firstNode, _ := htmlquery.Query(paginationNode, knigaPaginationFirstXPath)
+		if firstNode == nil {
+			return nil, nil, fmt.Errorf("pagination present but first-page-link selector found nothing, selector may be broken: %s", knigaPaginationFirstXPath)
+		}
+
+		if htmlquery.SelectAttr(firstNode, "class") == "active" {
+			lastNode, _ := htmlquery.Query(paginationNode, knigaPaginationLastXPath)
+			if lastNode == nil {
+				return nil, nil, fmt.Errorf("pagination present but last-page-link selector found nothing, selector may be broken: %s", knigaPaginationLastXPath)
+			}
+
+			lastPageNum, err := strconv.Atoi(htmlquery.InnerText(lastNode))
+			if err != nil {
+				return nil, nil, fmt.Errorf("last page link text is not a valid page number: %w", err)
+			}
+
 			for i := 2; i <= lastPageNum; i++ {
 				nextTasks = append(nextTasks, Task{
 					URL:     fmt.Sprintf("https://kniga.lv/shop?page=%d", i),
@@ -50,7 +72,7 @@ func processNode(n *html.Node) []ScrapedBook {
 	title := getMetaContent(n, "name")
 	url := getMetaContent(n, "url")
 
-	authorNode, _ := htmlquery.Query(n, ".//div[@class='product-author']")
+	authorNode, _ := htmlquery.Query(n, knigaAuthorXPath)
 	authors := []string{}
 	if authorNode != nil {
 		for author := range strings.SplitSeq(htmlquery.InnerText(authorNode), ",") {
