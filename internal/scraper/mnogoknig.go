@@ -16,7 +16,7 @@ const (
 	mnogoknigProductCardXPath         = "//div[contains(concat(' ', @class, ' '), ' product-card ')]//a[@title]"
 	mnogoknigPaginationContainerXPath = "//ul[contains(concat(' ', @class, ' '), ' pagination-nav ')]"
 	mnogoknigPaginationFirstXPath     = ".//span[@aria-current='page']"
-	mnogoknigPaginationLastXPath      = ".//a[@href][not(@rel)][last()]"
+	mnogoknigPaginationLastXPath      = ".//a[@href][not(@rel)]"
 	mnogoknigAuthorLinkXPath          = "//a[starts-with(@href,'https://mnogoknig.com/ru/author/')]"
 )
 
@@ -64,10 +64,11 @@ func (s *Scraper) MnogoknigListingHandler(ctx context.Context, node *html.Node) 
 		}
 
 		if htmlquery.InnerText(currentNode) == "1" {
-			lastNode, _ := htmlquery.Query(paginationNode, mnogoknigPaginationLastXPath)
-			if lastNode == nil {
+			lastNodes, _ := htmlquery.QueryAll(paginationNode, mnogoknigPaginationLastXPath)
+			if len(lastNodes) == 0 {
 				return nil, nil, fmt.Errorf("pagination present but last-page selector found nothing, selector may be broken: %s", mnogoknigPaginationLastXPath)
 			}
+			lastNode := lastNodes[len(lastNodes)-1]
 
 			parsedUrl, err := url.Parse(htmlquery.SelectAttr(lastNode, "href"))
 			if err != nil {

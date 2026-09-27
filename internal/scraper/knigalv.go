@@ -14,7 +14,7 @@ const (
 	knigaProductCardXPath         = "//div[@class='app-product-card']"
 	knigaPaginationContainerXPath = "//div[@class='app-pagination']"
 	knigaPaginationFirstXPath     = "./a[1]"
-	knigaPaginationLastXPath      = "./a[last()-1]"
+	knigaPaginationLastXPath      = "./a"
 	knigaAuthorXPath              = ".//div[@class='product-author']"
 )
 
@@ -39,10 +39,11 @@ func (s *Scraper) KnigaListingHandler(ctx context.Context, node *html.Node) ([]T
 		}
 
 		if htmlquery.SelectAttr(firstNode, "class") == "active" {
-			lastNode, _ := htmlquery.Query(paginationNode, knigaPaginationLastXPath)
-			if lastNode == nil {
-				return nil, nil, fmt.Errorf("pagination present but last-page-link selector found nothing, selector may be broken: %s", knigaPaginationLastXPath)
+			anchors, _ := htmlquery.QueryAll(paginationNode, knigaPaginationLastXPath)
+			if len(anchors) < 2 {
+				return nil, nil, fmt.Errorf("pagination present but last-page-link selector found fewer than 2 links, selector may be broken: %s", knigaPaginationLastXPath)
 			}
+			lastNode := anchors[len(anchors)-2]
 
 			lastPageNum, err := strconv.Atoi(htmlquery.InnerText(lastNode))
 			if err != nil {
