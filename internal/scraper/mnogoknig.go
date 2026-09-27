@@ -18,6 +18,7 @@ const (
 	mnogoknigPaginationFirstXPath     = ".//span[@aria-current='page']"
 	mnogoknigPaginationLastXPath      = ".//a[@href][not(@rel)]"
 	mnogoknigAuthorLinkXPath          = "//a[starts-with(@href,'https://mnogoknig.com/ru/author/')]"
+	mnogoknigEmptyCategoryXPath       = "//div[contains(., 'нет товаров')]"
 )
 
 func (s *Scraper) MnogoknigCategoryHandler(ctx context.Context, node *html.Node) ([]Task, []ScrapedBook, error) {
@@ -43,6 +44,9 @@ func (s *Scraper) MnogoknigCategoryHandler(ctx context.Context, node *html.Node)
 func (s *Scraper) MnogoknigListingHandler(ctx context.Context, node *html.Node) ([]Task, []ScrapedBook, error) {
 	nodes, _ := htmlquery.QueryAll(node, mnogoknigProductCardXPath)
 	if len(nodes) == 0 {
+		if emptyNode, _ := htmlquery.Query(node, mnogoknigEmptyCategoryXPath); emptyNode != nil {
+			return nil, nil, nil
+		}
 		return nil, nil, fmt.Errorf("no product cards found, selector may be broken: %s", mnogoknigProductCardXPath)
 	}
 
