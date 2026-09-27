@@ -15,10 +15,18 @@ import (
 )
 
 const (
-	scraperWorkers    = 10
-	downloaderWorkers = 100
-	publisherWorkers  = 3
+	scraperWorkers     = 10
+	downloaderWorkers  = 100
+	publisherWorkers   = 3
+	azonScraperWorkers = 2
 )
+
+func workersForSource(source scraper.SourceName) int {
+	if source == scraper.SourceAzon {
+		return azonScraperWorkers
+	}
+	return scraperWorkers
+}
 
 type Runner struct {
 	HTTPClient *http.Client
@@ -118,7 +126,7 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 		})
 	}
 
-	for range scraperWorkers {
+	for range workersForSource(source) {
 		scraperWg.Add(1)
 		wg.Go(func() {
 			defer scraperWg.Done()
