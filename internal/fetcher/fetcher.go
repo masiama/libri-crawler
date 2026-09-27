@@ -3,13 +3,10 @@ package fetcher
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"math/rand/v2"
-	"net"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -17,13 +14,6 @@ const (
 	maxAttempts    = 3
 	retryDelayBase = 500 * time.Millisecond
 )
-
-var retryableFragments = []string{
-	"GOAWAY",
-	"connection reset by peer",
-	"EOF",
-	"use of closed network connection",
-}
 
 type Request struct {
 	Client *http.Client
@@ -48,9 +38,6 @@ func (r Request) Do(ctx context.Context) (io.ReadCloser, error) {
 			return result, nil
 		}
 		lastErr = err
-		if !r.isRetryable(err) {
-			break
-		}
 	}
 	return nil, fmt.Errorf("fetch %s failed after %d attempts: %w", r.URL, attempts, lastErr)
 }
@@ -93,34 +80,6 @@ func (r Request) wait(ctx context.Context, attempt int) error {
 	case <-time.After(sleepDuration):
 		return nil
 	}
-}
-
-func (r Request) isRetryable(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	if httpErr, ok := errors.AsType[*HTTPStatusError](err); ok {
-		return httpErr.StatusCode == http.StatusBadGateway ||
-			httpErr.StatusCode == http.StatusServiceUnavailable ||
-			httpErr.StatusCode == http.StatusGatewayTimeout ||
-			httpErr.StatusCode == http.StatusTooManyRequests ||
-			httpErr.StatusCode == http.StatusForbidden
-	}
-
-	if netErr, ok := errors.AsType[net.Error](err); ok {
-		if netErr.Timeout() {
-			return true
-		}
-	}
-
-	msg := err.Error()
-	for _, fragment := range retryableFragments {
-		if strings.Contains(msg, fragment) {
-			return true
-		}
-	}
-	return false
 }
 
 type HTTPStatusError struct {
