@@ -60,7 +60,15 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 		slog.Error(string(event), "source", source, "crawl_id", crawlID, "error", err, "url", url)
 	}
 
-	tasksChan := make(chan scraper.Task, 10_000)
+	bookChan := make(chan scraper.Task, 10_000)
+	pageChan := make(chan scraper.Task, 10_000)
+	enqueue := func(t scraper.Task) {
+		if t.Type == scraper.TypeBook {
+			bookChan <- t
+		} else {
+			pageChan <- t
+		}
+	}
 	publishChan := make(chan scraper.ScrapedBook, 20_000)
 	imagesChan := make(chan scraper.ScrapedBook, 50_000)
 
@@ -131,7 +139,12 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 		wg.Go(func() {
 			defer scraperWg.Done()
 
-			for t := range tasksChan {
+			for {
+				t, ok := nextTask(bookChan, pageChan)
+				if !ok {
+					return
+				}
+
 				if c, _ := r.Redis.GetCancel(ctx, source); c {
 					cancelled.Store(true)
 					activeTasks.Done()
@@ -185,7 +198,7 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 						}
 
 						activeTasks.Add(1)
-						tasksChan <- nt
+						enqueue(nt)
 					}
 				}(next)
 
@@ -195,11 +208,12 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 	}
 
 	activeTasks.Add(1)
-	tasksChan <- rootTask
+	enqueue(rootTask)
 
 	go func() {
 		activeTasks.Wait()
-		close(tasksChan)
+		close(bookChan)
+		close(pageChan)
 
 		scraperWg.Wait()
 		close(publishChan)
@@ -237,6 +251,20 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 	)
 
 	return nil
+}
+
+func nextTask(bookChan, pageChan <-chan scraper.Task) (scraper.Task, bool) {
+	select {
+	case t, ok := <-bookChan:
+		return t, ok
+	default:
+	}
+	select {
+	case t, ok := <-bookChan:
+		return t, ok
+	case t, ok := <-pageChan:
+		return t, ok
+	}
 }
 
 func sourceTasks(s *scraper.Scraper) map[scraper.SourceName]scraper.Task {
