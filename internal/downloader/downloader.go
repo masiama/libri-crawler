@@ -13,7 +13,7 @@ type Downloader struct {
 }
 
 func (d *Downloader) Download(ctx context.Context, book scraper.ScrapedBook) error {
-	if d.Store.Exists(ctx, book) {
+	if book.ImageURL == "" || d.Store.Exists(ctx, book) {
 		return nil
 	}
 

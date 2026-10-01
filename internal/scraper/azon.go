@@ -87,6 +87,9 @@ func (s *Scraper) AzonBookHandler(ctx context.Context, node *html.Node) ([]Task,
 	title := strings.TrimSpace(htmlquery.InnerText(titleNode))
 
 	image := getAttr(node, "img[@itemprop='image']", "src")
+	if strings.Contains(image, "/placeholder-") {
+		image = ""
+	}
 	url := getAttr(node, "meta[@property='og:url']", "content")
 
 	authors := []string{}
