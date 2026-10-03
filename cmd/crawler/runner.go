@@ -60,15 +60,7 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 		slog.Error(string(event), "source", source, "crawl_id", crawlID, "error", err, "url", url)
 	}
 
-	bookChan := make(chan scraper.Task, 10_000)
-	pageChan := make(chan scraper.Task, 10_000)
-	enqueue := func(t scraper.Task) {
-		if t.Type == scraper.TypeBook {
-			bookChan <- t
-		} else {
-			pageChan <- t
-		}
-	}
+	tasksChan := make(chan scraper.Task, 10_000)
 	publishChan := make(chan scraper.ScrapedBook, 20_000)
 	imagesChan := make(chan scraper.ScrapedBook, 50_000)
 
@@ -139,12 +131,7 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 		wg.Go(func() {
 			defer scraperWg.Done()
 
-			for {
-				t, ok := nextTask(bookChan, pageChan)
-				if !ok {
-					return
-				}
-
+			for t := range tasksChan {
 				if c, _ := r.Redis.GetCancel(ctx, source); c {
 					cancelled.Store(true)
 					activeTasks.Done()
@@ -198,7 +185,7 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 						}
 
 						activeTasks.Add(1)
-						enqueue(nt)
+						tasksChan <- nt
 					}
 				}(next)
 
@@ -208,12 +195,11 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 	}
 
 	activeTasks.Add(1)
-	enqueue(rootTask)
+	tasksChan <- rootTask
 
 	go func() {
 		activeTasks.Wait()
-		close(bookChan)
-		close(pageChan)
+		close(tasksChan)
 
 		scraperWg.Wait()
 		close(publishChan)
@@ -253,20 +239,6 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 	return nil
 }
 
-func nextTask(bookChan, pageChan <-chan scraper.Task) (scraper.Task, bool) {
-	select {
-	case t, ok := <-bookChan:
-		return t, ok
-	default:
-	}
-	select {
-	case t, ok := <-bookChan:
-		return t, ok
-	case t, ok := <-pageChan:
-		return t, ok
-	}
-}
-
 func sourceTasks(s *scraper.Scraper) map[scraper.SourceName]scraper.Task {
 	return map[scraper.SourceName]scraper.Task{
 		scraper.SourceKnigaLv: {
@@ -280,7 +252,7 @@ func sourceTasks(s *scraper.Scraper) map[scraper.SourceName]scraper.Task {
 			Handler: s.MnogoknigCategoryHandler,
 		},
 		scraper.SourceAzon: {
-			URL:     "https://azon.market/knigi?sort=pd.name&order=ASC&show_instock=2&limit=50",
+			URL:     "https://azon.market/knigi?sort=pd.name&order=ASC&show_instock=2&limit=100",
 			Type:    scraper.TypeDiscovery,
 			Handler: s.AzonListingHandler,
 		},
