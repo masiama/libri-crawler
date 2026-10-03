@@ -28,6 +28,7 @@ func (s *Scraper) AzonListingHandler(ctx context.Context, node *html.Node) ([]Ta
 	for _, n := range nodes {
 		bookURL := htmlquery.SelectAttr(n, "href")
 		if strings.TrimSpace(htmlquery.InnerText(n)) != "" {
+			bookURL = azonReachableURL(bookURL, getAttr(n, "ancestor::div[@class='product-thumb']//*[@data-product-id]", "data-product-id"))
 			nextTasks = append(nextTasks, Task{
 				URL:     bookURL,
 				Type:    TypeBook,
@@ -90,7 +91,10 @@ func (s *Scraper) AzonBookHandler(ctx context.Context, node *html.Node) ([]Task,
 	if strings.Contains(image, "/placeholder-") {
 		image = ""
 	}
-	url := getAttr(node, "meta[@property='og:url']", "content")
+	url := azonReachableURL(
+		getAttr(node, "meta[@property='og:url']", "content"),
+		getAttr(node, "input[@name='product_id']", "value"),
+	)
 
 	authors := []string{}
 	authorsSeq := strings.FieldsFuncSeq(
@@ -123,4 +127,12 @@ func (s *Scraper) AzonBookHandler(ctx context.Context, node *html.Node) ([]Task,
 		ImageURL:   image,
 		Barcodes:   barcodes,
 	}}, nil
+}
+
+func azonReachableURL(rawURL, productID string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil || productID == "" || !strings.HasPrefix(u.Path, "/blog") {
+		return rawURL
+	}
+	return "https://azon.market/index.php?route=product/product&product_id=" + productID
 }
