@@ -128,7 +128,7 @@ func (s *Scraper) MnogoknigBookHandler(ctx context.Context, node *html.Node) ([]
 		URL:        url,
 		Authors:    authors,
 		SourceName: SourceMnogoknig,
-		ImageURL:   image,
+		Images:     map[ImageSide]string{SideFront: image},
 		Barcodes:   barcodes,
 	}}, nil
 }

@@ -8,15 +8,17 @@ import (
 type SourceName string
 
 const (
-	SourceKnigaLv   SourceName = "kniga.lv"
-	SourceMnogoknig SourceName = "mnogoknig.com"
-	SourceAzon      SourceName = "azon.market"
+	SourceKnigaLv     SourceName = "kniga.lv"
+	SourceMnogoknig   SourceName = "mnogoknig.com"
+	SourceAzon        SourceName = "azon.market"
+	SourceChitaiGorod SourceName = "chitai-gorod.ru"
 )
 
 var AllSources = []SourceName{
 	SourceKnigaLv,
 	SourceMnogoknig,
 	SourceAzon,
+	SourceChitaiGorod,
 }
 
 func GetSources() []string {

@@ -29,8 +29,8 @@ func NewStorage() (*LocalStorage, error) {
 	return &LocalStorage{RootDir: dir, dirCache: make(map[string]struct{})}, nil
 }
 
-func (l *LocalStorage) Save(ctx context.Context, book scraper.ScrapedBook, data io.Reader) error {
-	dir, fullPath := l.getShardedPath(book)
+func (l *LocalStorage) Save(ctx context.Context, book scraper.ScrapedBook, side scraper.ImageSide, data io.Reader) error {
+	dir, fullPath := l.getShardedPath(book, side)
 
 	if err := l.maybeCreateDir(dir); err != nil {
 		return err
@@ -49,20 +49,24 @@ func (l *LocalStorage) Save(ctx context.Context, book scraper.ScrapedBook, data 
 	return err
 }
 
-func (l *LocalStorage) Exists(ctx context.Context, book scraper.ScrapedBook) bool {
-	_, path := l.getShardedPath(book)
+func (l *LocalStorage) Exists(ctx context.Context, book scraper.ScrapedBook, side scraper.ImageSide) bool {
+	_, path := l.getShardedPath(book, side)
 	_, err := os.Stat(path)
 	return err == nil
 }
 
-func (l *LocalStorage) getShardedPath(book scraper.ScrapedBook) (string, string) {
+func (l *LocalStorage) getShardedPath(book scraper.ScrapedBook, side scraper.ImageSide) (string, string) {
 	sum := md5.Sum([]byte(book.ISBN))
 
 	shard1 := hex.EncodeToString(sum[0:1])
 	shard2 := hex.EncodeToString(sum[1:2])
 
 	dir := filepath.Join(l.RootDir, shard1, shard2)
-	fullPath := filepath.Join(dir, book.ISBN+".jpg")
+	name := book.ISBN
+	if side != scraper.SideFront {
+		name += "_" + string(side)
+	}
+	fullPath := filepath.Join(dir, name+".jpg")
 	return dir, fullPath
 }
 

@@ -17,6 +17,7 @@ Redis, and downloads cover images to shared local storage.
 - `kniga.lv`
 - `azon.market`
 - `mnogoknig.com`
+- `chitai-gorod.ru`
 
 ## Requirements
 

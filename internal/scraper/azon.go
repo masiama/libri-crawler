@@ -124,7 +124,7 @@ func (s *Scraper) AzonBookHandler(ctx context.Context, node *html.Node) ([]Task,
 		URL:        url,
 		Authors:    authors,
 		SourceName: SourceAzon,
-		ImageURL:   image,
+		Images:     map[ImageSide]string{SideFront: image},
 		Barcodes:   barcodes,
 	}}, nil
 }

@@ -19,6 +19,8 @@ const (
 	downloaderWorkers  = 100
 	publisherWorkers   = 3
 	azonScraperWorkers = 2
+
+	chitaiGorodRequestInterval = time.Second
 )
 
 func workersForSource(source scraper.SourceName) int {
@@ -42,6 +44,11 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 	var cancelled atomic.Bool
 
 	s := &scraper.Scraper{Client: r.HTTPClient}
+	if source == scraper.SourceChitaiGorod {
+		throttle := time.NewTicker(chitaiGorodRequestInterval)
+		defer throttle.Stop()
+		s.Throttle = throttle.C
+	}
 	dl := &downloader.Downloader{Store: r.Store, Client: r.HTTPClient}
 
 	rootTask, ok := sourceTasks(s)[source]
@@ -138,14 +145,14 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 					continue
 				}
 
-				node, err := s.Fetch(ctx, t.URL)
+				data, err := s.Fetch(ctx, t)
 				if err != nil {
 					recordGlobalErr(err, LogEventSourceFetchFailed, &t.URL)
 					activeTasks.Done()
 					continue
 				}
 
-				next, books, err := t.Handler(ctx, node)
+				next, books, err := t.Handle(ctx, data)
 				if err != nil {
 					recordGlobalErr(err, LogEventSourceHandleFailed, &t.URL)
 					activeTasks.Done()
@@ -255,6 +262,11 @@ func sourceTasks(s *scraper.Scraper) map[scraper.SourceName]scraper.Task {
 			URL:     "https://azon.market/knigi?sort=pd.name&order=ASC&show_instock=2&limit=100",
 			Type:    scraper.TypeDiscovery,
 			Handler: s.AzonListingHandler,
+		},
+		scraper.SourceChitaiGorod: {
+			URL:        scraper.ChitaiGorodSitemapURL,
+			Type:       scraper.TypeDiscovery,
+			RawHandler: s.ChitaiGorodSitemapHandler,
 		},
 	}
 }

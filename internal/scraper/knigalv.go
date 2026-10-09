@@ -115,7 +115,7 @@ func processNode(n *html.Node) []ScrapedBook {
 		URL:        url,
 		Authors:    authors,
 		SourceName: SourceKnigaLv,
-		ImageURL:   image,
+		Images:     map[ImageSide]string{SideFront: image},
 		Barcodes:   barcodes,
 	}}
 }
