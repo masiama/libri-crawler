@@ -15,6 +15,7 @@ const (
 	commandsQueue = "crawler:commands"
 	eventsQueue   = "crawler:events"
 	existingURLs  = "books:existing_urls"
+	aliveKey      = "crawler:alive"
 )
 
 func lockKey(source scraper.SourceName) string {
@@ -46,6 +47,10 @@ func NewFromEnv() (*Client, error) {
 
 func (c *Client) Ping(ctx context.Context) error {
 	return c.rdb.Ping(ctx).Err()
+}
+
+func (c *Client) SetAlive(ctx context.Context, version string, ttl time.Duration) error {
+	return c.rdb.Set(ctx, aliveKey, version, ttl).Err()
 }
 
 func (c *Client) Close() error {

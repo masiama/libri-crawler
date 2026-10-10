@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -18,6 +19,8 @@ const (
 	maxIdleConns        = 100
 	maxIdleConnsPerHost = 10
 	idleConnTimeout     = 90 * time.Second
+	aliveInterval       = 10 * time.Second
+	aliveTTL            = 30 * time.Second
 )
 
 var levelMap = map[string]slog.Level{
@@ -67,6 +70,8 @@ func main() {
 	manager := NewCrawlManager(runner, rdb)
 	ctx := context.Background()
 
+	go publishAlive(ctx, rdb, buildVersion())
+
 	slog.Info(string(LogEventCrawlerDaemonStarted))
 
 	for {
@@ -81,6 +86,26 @@ func main() {
 
 		manager.ProcessCommand(ctx, cmd.CrawlID, cmd.Source)
 	}
+}
+
+func publishAlive(ctx context.Context, rdb *redis.Client, version string) {
+	ticker := time.NewTicker(aliveInterval)
+	defer ticker.Stop()
+	for {
+		if err := rdb.SetAlive(ctx, version, aliveTTL); err != nil {
+			slog.Error(string(LogEventAlivePublishFailed), "error", err)
+		}
+		<-ticker.C
+	}
+}
+
+// Go stamps the git tag (or a pseudo-version) into the binary.
+func buildVersion() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok || info.Main.Version == "" || info.Main.Version == "(devel)" {
+		return "dev"
+	}
+	return info.Main.Version
 }
 
 func resolveLogLevel(raw string) slog.Level {

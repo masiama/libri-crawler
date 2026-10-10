@@ -31,4 +31,5 @@ const (
 	LogEventInvalidSource               LogEvent = "invalid_source"
 	LogEventLoadDotenvFailed            LogEvent = "load_dotenv_failed"
 	LogEventHeartbeatPublishFailed      LogEvent = "heartbeat_publish_failed"
+	LogEventAlivePublishFailed          LogEvent = "alive_publish_failed"
 )
