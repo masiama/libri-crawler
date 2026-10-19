@@ -41,6 +41,7 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 	slog.Debug(string(LogEventCrawlStarted), "source", source, "crawl_id", crawlID)
 
 	var totalProcessed atomic.Int64
+	var booksDone, booksSkipped atomic.Int64
 	var cancelled atomic.Bool
 
 	s := &scraper.Scraper{Client: r.HTTPClient}
@@ -88,8 +89,9 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 					continue
 				}
 				lastReported = count
+				estimate := estimateDurationMs(time.Since(start), booksDone.Load(), s.EstimatedBooks.Load()-booksSkipped.Load())
 				slog.Debug(string(LogEventCrawlProgress), "source", source, "books_found", count)
-				err := r.Redis.PublishProgress(ctx, crawlID, count)
+				err := r.Redis.PublishProgress(ctx, crawlID, count, estimate)
 				if err != nil {
 					slog.Error(string(LogEventCrawlProgressPublishFailed), "source", source, "crawl_id", crawlID, "error", err, "books_found", count)
 				}
@@ -145,6 +147,10 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 					continue
 				}
 
+				if t.Type == scraper.TypeBook {
+					booksDone.Add(1)
+				}
+
 				data, err := s.Fetch(ctx, t)
 				if err != nil {
 					recordGlobalErr(err, LogEventSourceFetchFailed, &t.URL)
@@ -160,6 +166,9 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 				}
 
 				totalProcessed.Add(int64(len(books)))
+				if t.Type != scraper.TypeBook {
+					booksDone.Add(int64(len(books)))
+				}
 
 				for _, b := range books {
 					publishChan <- b
@@ -176,6 +185,9 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 							continue
 						}
 						if seen {
+							if nt.Type == scraper.TypeBook {
+								booksSkipped.Add(1)
+							}
 							continue
 						}
 
@@ -187,6 +199,7 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 							}
 							if exists {
 								totalProcessed.Add(1)
+								booksSkipped.Add(1)
 								continue
 							}
 						}
@@ -244,6 +257,15 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 	)
 
 	return nil
+}
+
+func estimateDurationMs(elapsed time.Duration, done, total int64) *int64 {
+	if done <= 0 || total <= 0 {
+		return nil
+	}
+	ms := elapsed.Milliseconds()
+	ms = max(ms, int64(float64(ms)*float64(total)/float64(done)))
+	return &ms
 }
 
 func sourceTasks(s *scraper.Scraper) map[scraper.SourceName]scraper.Task {

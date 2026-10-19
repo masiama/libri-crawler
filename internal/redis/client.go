@@ -91,8 +91,8 @@ func (c *Client) PublishBook(ctx context.Context, crawlID int64, book scraper.Sc
 	return c.publish(ctx, CrawlerEvent{Type: EventBook, CrawlID: crawlID, Book: &book})
 }
 
-func (c *Client) PublishProgress(ctx context.Context, crawlID int64, booksFound int64) error {
-	return c.publish(ctx, CrawlerEvent{Type: EventProgress, CrawlID: crawlID, BooksFound: &booksFound})
+func (c *Client) PublishProgress(ctx context.Context, crawlID int64, booksFound int64, estimatedDurationMs *int64) error {
+	return c.publish(ctx, CrawlerEvent{Type: EventProgress, CrawlID: crawlID, BooksFound: &booksFound, EstimatedDurationMs: estimatedDurationMs})
 }
 
 func (c *Client) PublishCompleted(ctx context.Context, crawlID int64, booksFound int64) error {

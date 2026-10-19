@@ -61,7 +61,9 @@ func (s *Scraper) MnogoknigListingHandler(ctx context.Context, node *html.Node) 
 	}
 
 	paginationNode, _ := htmlquery.Query(node, mnogoknigPaginationContainerXPath)
-	if paginationNode != nil {
+	if paginationNode == nil {
+		s.EstimatedBooks.Add(int64(len(nextTasks)))
+	} else {
 		currentNode, _ := htmlquery.Query(paginationNode, mnogoknigPaginationFirstXPath)
 		if currentNode == nil {
 			return nil, nil, fmt.Errorf("pagination present but current-page selector found nothing, selector may be broken: %s", mnogoknigPaginationFirstXPath)
@@ -84,6 +86,7 @@ func (s *Scraper) MnogoknigListingHandler(ctx context.Context, node *html.Node) 
 				return nil, nil, fmt.Errorf("last page link has no valid page query param: %w", err)
 			}
 
+			s.EstimatedBooks.Add(int64(len(nextTasks) * lastPageNum))
 			for i := 2; i <= lastPageNum; i++ {
 				query.Set("page", strconv.Itoa(i))
 				parsedUrl.RawQuery = query.Encode()

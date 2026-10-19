@@ -3,6 +3,7 @@ package scraper
 import (
 	"context"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/net/html"
@@ -16,8 +17,9 @@ const (
 )
 
 type Scraper struct {
-	Client   *http.Client
-	Throttle <-chan time.Time
+	Client         *http.Client
+	Throttle       <-chan time.Time
+	EstimatedBooks atomic.Int64
 }
 
 type Task struct {

@@ -38,7 +38,9 @@ func (s *Scraper) AzonListingHandler(ctx context.Context, node *html.Node) ([]Ta
 	}
 
 	paginationNode, _ := htmlquery.Query(node, azonPaginationContainerXPath)
-	if paginationNode != nil {
+	if paginationNode == nil {
+		s.EstimatedBooks.Add(int64(len(nextTasks)))
+	} else {
 		currentNode, _ := htmlquery.Query(paginationNode, azonPaginationFirstXPath)
 		if currentNode == nil {
 			return nil, nil, fmt.Errorf("pagination present but current-page selector found nothing, selector may be broken: %s", azonPaginationFirstXPath)
@@ -61,6 +63,7 @@ func (s *Scraper) AzonListingHandler(ctx context.Context, node *html.Node) ([]Ta
 				return nil, nil, fmt.Errorf("last page link has no valid page query param: %w", err)
 			}
 
+			s.EstimatedBooks.Add(int64(len(nextTasks) * lastPageNum))
 			for i := 2; i <= lastPageNum; i++ {
 				query.Set("page", strconv.Itoa(i))
 				parsedUrl.RawQuery = query.Encode()

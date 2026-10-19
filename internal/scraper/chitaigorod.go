@@ -67,6 +67,7 @@ func (s *Scraper) ChitaiGorodProductSitemapHandler(ctx context.Context, data []b
 		return nil, nil, fmt.Errorf("failed to decode product sitemap: %w", err)
 	}
 
+	s.EstimatedBooks.Add(int64(len(set.URLs)))
 	tasks := make([]Task, 0, len(set.URLs))
 	for _, u := range set.URLs {
 		tasks = append(tasks, Task{

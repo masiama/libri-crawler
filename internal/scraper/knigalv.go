@@ -32,7 +32,9 @@ func (s *Scraper) KnigaListingHandler(ctx context.Context, node *html.Node) ([]T
 
 	var nextTasks []Task
 	paginationNode, _ := htmlquery.Query(node, knigaPaginationContainerXPath)
-	if paginationNode != nil {
+	if paginationNode == nil {
+		s.EstimatedBooks.Add(int64(len(books)))
+	} else {
 		firstNode, _ := htmlquery.Query(paginationNode, knigaPaginationFirstXPath)
 		if firstNode == nil {
 			return nil, nil, fmt.Errorf("pagination present but first-page-link selector found nothing, selector may be broken: %s", knigaPaginationFirstXPath)
@@ -50,6 +52,7 @@ func (s *Scraper) KnigaListingHandler(ctx context.Context, node *html.Node) ([]T
 				return nil, nil, fmt.Errorf("last page link text is not a valid page number: %w", err)
 			}
 
+			s.EstimatedBooks.Add(int64(len(books) * lastPageNum))
 			for i := 2; i <= lastPageNum; i++ {
 				nextTasks = append(nextTasks, Task{
 					URL:     fmt.Sprintf("https://kniga.lv/shop?page=%d", i),

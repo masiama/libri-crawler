@@ -15,12 +15,13 @@ const (
 )
 
 type CrawlerEvent struct {
-	Type       EventType            `json:"type"`
-	CrawlID    int64                `json:"crawlId"`
-	BooksFound *int64               `json:"booksFound,omitempty"`
-	Error      *string              `json:"error,omitempty"`
-	URL        *string              `json:"url,omitempty"`
-	Book       *scraper.ScrapedBook `json:"book,omitempty"`
+	Type                EventType            `json:"type"`
+	CrawlID             int64                `json:"crawlId"`
+	BooksFound          *int64               `json:"booksFound,omitempty"`
+	EstimatedDurationMs *int64               `json:"estimatedDurationMs,omitempty"`
+	Error               *string              `json:"error,omitempty"`
+	URL                 *string              `json:"url,omitempty"`
+	Book                *scraper.ScrapedBook `json:"book,omitempty"`
 }
 
 type crawlerCommand struct {
