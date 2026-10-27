@@ -21,7 +21,7 @@ Redis, and downloads cover images to shared local storage.
 
 ## Requirements
 
-- Go 1.26+
+- Go 1.27+
 - A running Redis instance
 - An images directory shared with `libri-api`
 

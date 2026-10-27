@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Go 1.26+
+- Go 1.27+
 - Redis (local instance for development)
 - golangci-lint — see
   [installation guide](https://golangci-lint.run/docs/welcome/install/)
