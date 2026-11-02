@@ -62,7 +62,7 @@ jobs:
 
       - run: ko build ./cmd/crawler --bare --platform=linux/amd64,linux/arm64 --tags=${{ steps.ko-tags.outputs.tags }}
 
-  deploy:
+  deploy-oracle:
     needs: build
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -77,4 +77,28 @@ jobs:
             cd /opt/libri
             docker compose pull crawler
             docker compose up -d crawler
+            docker image prune -f
+
+  deploy-mac:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd ~/libri
+            export PATH=/usr/local/bin:/opt/homebrew/bin:$PATH
+            docker compose -f docker-compose.prod.yml pull crawler
+            docker compose -f docker-compose.prod.yml up -d crawler
             docker image prune -f
