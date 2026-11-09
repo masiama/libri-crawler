@@ -16,7 +16,29 @@ const (
 	azonPaginationContainerXPath = "//ul[@class='pagination']"
 	azonPaginationFirstXPath     = ".//li[@class='active']"
 	azonPaginationLastXPath      = ".//li[@class='last']/a"
+	azonSubcategoryXPath         = "//li[starts-with(@class,'category_id_')]//a"
+
+	azonMaxPages = 999
 )
+
+func (s *Scraper) AzonCategoryHandler(ctx context.Context, node *html.Node) ([]Task, []ScrapedBook, error) {
+	nodes, _ := htmlquery.QueryAll(node, azonSubcategoryXPath)
+	own, _, err := s.AzonListingHandler(ctx, node)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var nextTasks []Task
+	for _, n := range nodes {
+		nextTasks = append(nextTasks, Task{
+			URL:     htmlquery.SelectAttr(n, "href"),
+			Type:    TypeDiscovery,
+			Handler: s.AzonCategoryHandler,
+		})
+	}
+
+	return append(nextTasks, own...), nil, nil
+}
 
 func (s *Scraper) AzonListingHandler(ctx context.Context, node *html.Node) ([]Task, []ScrapedBook, error) {
 	nodes, _ := htmlquery.QueryAll(node, azonProductLinkXPath)
@@ -57,12 +79,12 @@ func (s *Scraper) AzonListingHandler(ctx context.Context, node *html.Node) ([]Ta
 				return nil, nil, fmt.Errorf("failed to parse last page url: %w", err)
 			}
 			query := parsedUrl.Query()
-			query.Set("show_instock", "2")
 			lastPageNum, err := strconv.Atoi(query.Get("page"))
 			if err != nil {
 				return nil, nil, fmt.Errorf("last page link has no valid page query param: %w", err)
 			}
 
+			lastPageNum = min(lastPageNum, azonMaxPages)
 			s.EstimatedBooks.Add(int64(len(nextTasks) * lastPageNum))
 			for i := 2; i <= lastPageNum; i++ {
 				query.Set("page", strconv.Itoa(i))
@@ -80,28 +102,28 @@ func (s *Scraper) AzonListingHandler(ctx context.Context, node *html.Node) ([]Ta
 }
 
 func (s *Scraper) AzonBookHandler(ctx context.Context, node *html.Node) ([]Task, []ScrapedBook, error) {
-	isbn := processISBN(getMetaContent(node, "isbn"))
+	isbn := processISBN(azonMeta(node, "book:isbn"))
 	if isbn == "" {
 		return nil, nil, nil
 	}
-	titleNode, _ := htmlquery.Query(node, "//h1[@itemprop='name']")
+	titleNode, _ := htmlquery.Query(node, "//h1[@id='product_title']")
 	if titleNode == nil {
 		return nil, nil, nil
 	}
 	title := strings.TrimSpace(htmlquery.InnerText(titleNode))
 
-	image := getAttr(node, "img[@itemprop='image']", "src")
+	image := azonMeta(node, "og:image")
 	if strings.Contains(image, "/placeholder-") {
 		image = ""
 	}
 	url := azonReachableURL(
-		getAttr(node, "meta[@property='og:url']", "content"),
+		azonMeta(node, "og:url"),
 		getAttr(node, "input[@name='product_id']", "value"),
 	)
 
 	authors := []string{}
 	authorsSeq := strings.FieldsFuncSeq(
-		getMetaContent(node, "book:author"),
+		azonMeta(node, "book:author"),
 		func(r rune) bool { return r == ';' || r == ',' },
 	)
 	for author := range authorsSeq {
@@ -112,13 +134,8 @@ func (s *Scraper) AzonBookHandler(ctx context.Context, node *html.Node) ([]Task,
 	}
 
 	barcodes := []Barcode{{Type: "isbn", Value: isbn}}
-	sku := getMetaContent(node, "sku")
-	mpn := getMetaContent(node, "mpn")
-	if sku != "" {
+	if sku := azonMeta(node, "product:retailer_item_id"); sku != "" {
 		barcodes = append(barcodes, Barcode{Type: "sku", Value: sku})
-	}
-	if mpn != "" && mpn != sku {
-		barcodes = append(barcodes, Barcode{Type: "mpn", Value: mpn})
 	}
 
 	return nil, []ScrapedBook{{
@@ -130,6 +147,10 @@ func (s *Scraper) AzonBookHandler(ctx context.Context, node *html.Node) ([]Task,
 		Images:     map[ImageSide]string{SideFront: image},
 		Barcodes:   barcodes,
 	}}, nil
+}
+
+func azonMeta(node *html.Node, property string) string {
+	return getAttr(node, fmt.Sprintf("meta[@property='%s']", property), "content")
 }
 
 func azonReachableURL(rawURL, productID string) string {

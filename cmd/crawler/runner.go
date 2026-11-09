@@ -15,20 +15,12 @@ import (
 )
 
 const (
-	scraperWorkers     = 10
-	downloaderWorkers  = 100
-	publisherWorkers   = 3
-	azonScraperWorkers = 2
+	scraperWorkers    = 10
+	downloaderWorkers = 100
+	publisherWorkers  = 3
 
 	chitaiGorodRequestInterval = time.Second
 )
-
-func workersForSource(source scraper.SourceName) int {
-	if source == scraper.SourceAzon {
-		return azonScraperWorkers
-	}
-	return scraperWorkers
-}
 
 type Runner struct {
 	HTTPClient *http.Client
@@ -135,7 +127,7 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 		})
 	}
 
-	for range workersForSource(source) {
+	for range scraperWorkers {
 		scraperWg.Add(1)
 		wg.Go(func() {
 			defer scraperWg.Done()
@@ -281,9 +273,9 @@ func sourceTasks(s *scraper.Scraper) map[scraper.SourceName]scraper.Task {
 			Handler: s.MnogoknigCategoryHandler,
 		},
 		scraper.SourceAzon: {
-			URL:     "https://azon.market/knigi?sort=pd.name&order=ASC&show_instock=2&limit=100",
+			URL:     "https://azon.market/knigi?sort=pd.name&limit=100",
 			Type:    scraper.TypeDiscovery,
-			Handler: s.AzonListingHandler,
+			Handler: s.AzonCategoryHandler,
 		},
 		scraper.SourceChitaiGorod: {
 			URL:        scraper.ChitaiGorodSitemapURL,
