@@ -32,6 +32,8 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-go@v6
         with:
@@ -60,7 +62,12 @@ jobs:
           TAGS=$(echo "${{ steps.meta.outputs.tags }}" | sed 's|.*:||' | paste -sd "," -)
           echo "tags=$TAGS" >> $GITHUB_OUTPUT
 
-      - run: ko build ./cmd/crawler --bare --platform=linux/amd64,linux/arm64 --tags=${{ steps.ko-tags.outputs.tags }}
+      - id: version
+        run: echo "APP_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo dev)-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
+      - env:
+          GOFLAGS: -ldflags=-X=main.version=${{ steps.version.outputs.APP_VERSION }}
+        run: ko build ./cmd/crawler --bare --platform=linux/amd64,linux/arm64 --tags=${{ steps.ko-tags.outputs.tags }}
 
   deploy-mac:
     needs: build

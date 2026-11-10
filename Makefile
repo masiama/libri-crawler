@@ -1,9 +1,12 @@
+VERSION := $(shell echo $$(git describe --tags --abbrev=0 2>/dev/null || echo dev)-$$(git rev-parse --short HEAD 2>/dev/null))
+LDFLAGS := -X main.version=$(VERSION)
+
 build:
 	go mod tidy
-	go build -mod=readonly -o bin/crawler ./cmd/crawler
+	go build -mod=readonly -ldflags "$(LDFLAGS)" -o bin/crawler ./cmd/crawler
 
 run:
-	go run ./cmd/crawler
+	go run -ldflags "$(LDFLAGS)" ./cmd/crawler
 
 clean:
 	rm -rf bin/

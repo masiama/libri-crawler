@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"runtime/debug"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -99,14 +98,10 @@ func publishAlive(ctx context.Context, rdb *redis.Client, version string) {
 	}
 }
 
-// Go stamps the git tag (or a pseudo-version) into the binary.
-func buildVersion() string {
-	info, ok := debug.ReadBuildInfo()
-	if !ok || info.Main.Version == "" || info.Main.Version == "(devel)" {
-		return "dev"
-	}
-	return info.Main.Version
-}
+// Set at build time: -ldflags "-X main.version=<tag or dev>-<sha>".
+var version = "dev"
+
+func buildVersion() string { return version }
 
 func resolveLogLevel(raw string) slog.Level {
 	level, ok := levelMap[raw]
