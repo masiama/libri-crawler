@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -17,9 +18,22 @@ const (
 	azonPaginationFirstXPath     = ".//li[@class='active']"
 	azonPaginationLastXPath      = ".//li[@class='last']/a"
 	azonSubcategoryXPath         = "//li[starts-with(@class,'category_id_')]//a"
+	azonResultsInfoXPath         = "//span[@id='cat-results-info']"
 
 	azonMaxPages = 999
 )
+
+var azonFoundRegex = regexp.MustCompile(`Найдено\s+(\d+)`)
+
+func (s *Scraper) AzonRootHandler(ctx context.Context, node *html.Node) ([]Task, []ScrapedBook, error) {
+	if info, _ := htmlquery.Query(node, azonResultsInfoXPath); info != nil {
+		if m := azonFoundRegex.FindStringSubmatch(htmlquery.InnerText(info)); m != nil {
+			total, _ := strconv.Atoi(m[1])
+			s.EstimatedBooks.Store(int64(total))
+		}
+	}
+	return s.AzonCategoryHandler(ctx, node)
+}
 
 func (s *Scraper) AzonCategoryHandler(ctx context.Context, node *html.Node) ([]Task, []ScrapedBook, error) {
 	nodes, _ := htmlquery.QueryAll(node, azonSubcategoryXPath)
@@ -60,9 +74,7 @@ func (s *Scraper) AzonListingHandler(ctx context.Context, node *html.Node) ([]Ta
 	}
 
 	paginationNode, _ := htmlquery.Query(node, azonPaginationContainerXPath)
-	if paginationNode == nil {
-		s.EstimatedBooks.Add(int64(len(nextTasks)))
-	} else {
+	if paginationNode != nil {
 		currentNode, _ := htmlquery.Query(paginationNode, azonPaginationFirstXPath)
 		if currentNode == nil {
 			return nil, nil, fmt.Errorf("pagination present but current-page selector found nothing, selector may be broken: %s", azonPaginationFirstXPath)
@@ -85,7 +97,6 @@ func (s *Scraper) AzonListingHandler(ctx context.Context, node *html.Node) ([]Ta
 			}
 
 			lastPageNum = min(lastPageNum, azonMaxPages)
-			s.EstimatedBooks.Add(int64(len(nextTasks) * lastPageNum))
 			for i := 2; i <= lastPageNum; i++ {
 				query.Set("page", strconv.Itoa(i))
 				parsedUrl.RawQuery = query.Encode()

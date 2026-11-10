@@ -33,7 +33,7 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 	slog.Debug(string(LogEventCrawlStarted), "source", source, "crawl_id", crawlID)
 
 	var totalProcessed atomic.Int64
-	var booksDone, booksSkipped atomic.Int64
+	var booksDone, booksKnown atomic.Int64
 	var cancelled atomic.Bool
 
 	s := &scraper.Scraper{Client: r.HTTPClient}
@@ -70,18 +70,19 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 	go func() {
 		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()
-		var lastReported int64 = -1
+		var lastReported, lastDone int64 = -1, -1
 		for {
 			select {
 			case <-reportCtx.Done():
 				return
 			case <-ticker.C:
 				count := totalProcessed.Load()
-				if count == lastReported {
+				total, done := s.EstimatedBooks.Load(), booksDone.Load()+booksKnown.Load()
+				if count == lastReported && done == lastDone {
 					continue
 				}
-				lastReported = count
-				estimate := estimateDurationMs(time.Since(start), booksDone.Load(), s.EstimatedBooks.Load()-booksSkipped.Load())
+				lastReported, lastDone = count, done
+				estimate := estimateDurationMs(time.Since(start), done, total)
 				slog.Debug(string(LogEventCrawlProgress), "source", source, "books_found", count)
 				err := r.Redis.PublishProgress(ctx, crawlID, count, estimate)
 				if err != nil {
@@ -177,9 +178,6 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 							continue
 						}
 						if seen {
-							if nt.Type == scraper.TypeBook {
-								booksSkipped.Add(1)
-							}
 							continue
 						}
 
@@ -191,7 +189,7 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 							}
 							if exists {
 								totalProcessed.Add(1)
-								booksSkipped.Add(1)
+								booksKnown.Add(1)
 								continue
 							}
 						}
@@ -275,7 +273,7 @@ func sourceTasks(s *scraper.Scraper) map[scraper.SourceName]scraper.Task {
 		scraper.SourceAzon: {
 			URL:     "https://azon.market/knigi?sort=pd.name&limit=100",
 			Type:    scraper.TypeDiscovery,
-			Handler: s.AzonCategoryHandler,
+			Handler: s.AzonRootHandler,
 		},
 		scraper.SourceChitaiGorod: {
 			URL:        scraper.ChitaiGorodSitemapURL,
