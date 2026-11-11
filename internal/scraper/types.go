@@ -19,6 +19,7 @@ const (
 type Scraper struct {
 	Client         *http.Client
 	Throttle       <-chan time.Time
+	Breaker        *Breaker
 	EstimatedBooks atomic.Int64
 }
 

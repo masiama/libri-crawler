@@ -30,7 +30,7 @@ type Request struct {
 	Accept string
 }
 
-func isBlocked(err error) bool {
+func IsBlocked(err error) bool {
 	statusErr, ok := errors.AsType[*HTTPStatusError](err)
 	return ok && (statusErr.StatusCode == http.StatusForbidden || statusErr.StatusCode == http.StatusTooManyRequests)
 }
@@ -52,7 +52,7 @@ func (r Request) Do(ctx context.Context) (io.ReadCloser, error) {
 		if err == nil {
 			return result, nil
 		}
-		if isBlocked(err) {
+		if IsBlocked(err) {
 			return nil, fmt.Errorf("fetch %s blocked: %w", r.URL, err)
 		}
 		lastErr = err
