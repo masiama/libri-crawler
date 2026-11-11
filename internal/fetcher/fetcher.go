@@ -13,6 +13,9 @@ import (
 )
 
 const (
+	AcceptHTML       = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
+	AcceptImage      = "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"
+	acceptLanguage   = "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"
 	UserAgent        = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 	maxAttempts      = 4
 	retryDelayBase   = 500 * time.Millisecond
@@ -25,6 +28,7 @@ const (
 type Request struct {
 	Client *http.Client
 	URL    string
+	Accept string
 }
 
 // Do executes the request with retries.
@@ -56,6 +60,8 @@ func (r Request) fetch(ctx context.Context) (io.ReadCloser, error) {
 	}
 
 	req.Header.Set("User-Agent", UserAgent)
+	req.Header.Set("Accept", r.Accept)
+	req.Header.Set("Accept-Language", acceptLanguage)
 
 	resp, err := r.Client.Do(req)
 	if err != nil {

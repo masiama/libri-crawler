@@ -30,7 +30,7 @@ func (d *Downloader) Download(ctx context.Context, book scraper.ScrapedBook) err
 }
 
 func (d *Downloader) download(ctx context.Context, book scraper.ScrapedBook, side scraper.ImageSide, url string) error {
-	data, err := fetcher.Request{Client: d.Client, URL: url}.Do(ctx)
+	data, err := fetcher.Request{Client: d.Client, URL: url, Accept: fetcher.AcceptImage}.Do(ctx)
 	if err != nil {
 		return err
 	}

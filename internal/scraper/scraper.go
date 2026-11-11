@@ -17,7 +17,7 @@ func (s *Scraper) Fetch(ctx context.Context, t Task) ([]byte, error) {
 		case <-s.Throttle:
 		}
 	}
-	data, err := fetcher.Request{Client: s.Client, URL: t.URL}.Do(ctx)
+	data, err := fetcher.Request{Client: s.Client, URL: t.URL, Accept: fetcher.AcceptHTML}.Do(ctx)
 	if err != nil {
 		return nil, err
 	}

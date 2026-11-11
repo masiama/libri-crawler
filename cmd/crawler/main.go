@@ -7,6 +7,7 @@ import (
 	"libri-crawler/internal/redis"
 	"log/slog"
 	"net/http"
+	"net/http/cookiejar"
 	"os"
 	"time"
 
@@ -41,7 +42,12 @@ func main() {
 	}
 
 	transport := &http.Transport{MaxIdleConns: maxIdleConns, MaxIdleConnsPerHost: maxIdleConnsPerHost, IdleConnTimeout: idleConnTimeout}
-	httpClient := &http.Client{Timeout: apiTimeout, Transport: transport}
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		fatal(LogEventCookieJarInitializationFailed, err)
+	}
+	httpClient := &http.Client{Timeout: apiTimeout, Transport: transport, Jar: jar}
+
 	store, err := downloader.NewStorage()
 	if err != nil {
 		fatal(LogEventStorageInitializationFailed, err)
