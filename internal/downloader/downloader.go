@@ -5,11 +5,13 @@ import (
 	"libri-crawler/internal/fetcher"
 	"libri-crawler/internal/scraper"
 	"net/http"
+	"time"
 )
 
 type Downloader struct {
-	Client *http.Client
-	Store  *LocalStorage
+	Client   *http.Client
+	Store    *LocalStorage
+	Throttle <-chan time.Time
 }
 
 func (d *Downloader) Download(ctx context.Context, book scraper.ScrapedBook) error {
@@ -30,6 +32,13 @@ func (d *Downloader) Download(ctx context.Context, book scraper.ScrapedBook) err
 }
 
 func (d *Downloader) download(ctx context.Context, book scraper.ScrapedBook, side scraper.ImageSide, url string) error {
+	if d.Throttle != nil {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-d.Throttle:
+		}
+	}
 	data, err := fetcher.Request{Client: d.Client, URL: url, Accept: fetcher.AcceptImage}.Do(ctx)
 	if err != nil {
 		return err

@@ -8,6 +8,7 @@ import (
 	"libri-crawler/internal/redis"
 	"libri-crawler/internal/scraper"
 	"log/slog"
+	"math/rand/v2"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -19,8 +20,31 @@ const (
 	downloaderWorkers = 100
 	publisherWorkers  = 3
 
-	chitaiGorodRequestInterval = time.Second
+	chitaiGorodRequestIntervalMin = 750 * time.Millisecond
+	chitaiGorodRequestIntervalMax = 1250 * time.Millisecond
+
+	azonRequestIntervalMin = 1500 * time.Millisecond
+	azonRequestIntervalMax = 3 * time.Second
 )
+
+func newThrottle(ctx context.Context, minInterval, maxInterval time.Duration) <-chan time.Time {
+	ch := make(chan time.Time)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(minInterval + rand.N(maxInterval-minInterval)):
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case ch <- time.Now():
+			}
+		}
+	}()
+	return ch
+}
 
 type Runner struct {
 	HTTPClient *http.Client
@@ -36,13 +60,18 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 	var booksDone, booksKnown atomic.Int64
 	var cancelled atomic.Bool
 
+	throttleCtx, stopThrottles := context.WithCancel(ctx)
+	defer stopThrottles()
+
 	s := &scraper.Scraper{Client: r.HTTPClient}
-	if source == scraper.SourceChitaiGorod {
-		throttle := time.NewTicker(chitaiGorodRequestInterval)
-		defer throttle.Stop()
-		s.Throttle = throttle.C
-	}
 	dl := &downloader.Downloader{Store: r.Store, Client: r.HTTPClient}
+	switch source {
+	case scraper.SourceChitaiGorod:
+		s.Throttle = newThrottle(throttleCtx, chitaiGorodRequestIntervalMin, chitaiGorodRequestIntervalMax)
+	case scraper.SourceAzon:
+		s.Throttle = newThrottle(throttleCtx, azonRequestIntervalMin, azonRequestIntervalMax)
+		dl.Throttle = newThrottle(throttleCtx, azonRequestIntervalMin, azonRequestIntervalMax)
+	}
 
 	rootTask, ok := sourceTasks(s)[source]
 	if !ok {
