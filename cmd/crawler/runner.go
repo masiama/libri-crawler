@@ -25,6 +25,10 @@ const (
 
 	azonRequestIntervalMin = 1500 * time.Millisecond
 	azonRequestIntervalMax = 3 * time.Second
+
+	blockThreshold = 3
+	blockPause     = 10 * time.Minute
+	blockMaxPauses = 3
 )
 
 func newThrottle(ctx context.Context, minInterval, maxInterval time.Duration) <-chan time.Time {
@@ -60,17 +64,21 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 	var booksDone, booksKnown atomic.Int64
 	var cancelled atomic.Bool
 
-	throttleCtx, stopThrottles := context.WithCancel(ctx)
-	defer stopThrottles()
+	fetchCtx, abortFetch := context.WithCancel(ctx)
+	defer abortFetch()
+	var blocked atomic.Bool
 
-	s := &scraper.Scraper{Client: r.HTTPClient}
+	s := &scraper.Scraper{
+		Client:  r.HTTPClient,
+		Breaker: &scraper.Breaker{Threshold: blockThreshold, Pause: blockPause, MaxPauses: blockMaxPauses},
+	}
 	dl := &downloader.Downloader{Store: r.Store, Client: r.HTTPClient}
 	switch source {
 	case scraper.SourceChitaiGorod:
-		s.Throttle = newThrottle(throttleCtx, chitaiGorodRequestIntervalMin, chitaiGorodRequestIntervalMax)
+		s.Throttle = newThrottle(fetchCtx, chitaiGorodRequestIntervalMin, chitaiGorodRequestIntervalMax)
 	case scraper.SourceAzon:
-		s.Throttle = newThrottle(throttleCtx, azonRequestIntervalMin, azonRequestIntervalMax)
-		dl.Throttle = newThrottle(throttleCtx, azonRequestIntervalMin, azonRequestIntervalMax)
+		s.Throttle = newThrottle(fetchCtx, azonRequestIntervalMin, azonRequestIntervalMax)
+		dl.Throttle = newThrottle(fetchCtx, azonRequestIntervalMin, azonRequestIntervalMax)
 	}
 
 	rootTask, ok := sourceTasks(s)[source]
@@ -150,7 +158,10 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 	for range downloaderWorkers {
 		wg.Go(func() {
 			for b := range imagesChan {
-				if err := dl.Download(ctx, b); err != nil {
+				if blocked.Load() {
+					continue
+				}
+				if err := dl.Download(fetchCtx, b); err != nil {
 					recordGlobalErr(err, LogEventImageDownloadFailed, &b.URL)
 				}
 			}
@@ -163,6 +174,10 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 			defer scraperWg.Done()
 
 			for t := range tasksChan {
+				if blocked.Load() {
+					activeTasks.Done()
+					continue
+				}
 				if c, _ := r.Redis.GetCancel(ctx, source); c {
 					cancelled.Store(true)
 					activeTasks.Done()
@@ -173,8 +188,19 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 					booksDone.Add(1)
 				}
 
-				data, err := s.Fetch(ctx, t)
+				data, err := s.Fetch(fetchCtx, t)
 				if err != nil {
+					if errors.Is(err, scraper.ErrBlocked) {
+						if blocked.CompareAndSwap(false, true) {
+							abortFetch()
+						}
+						activeTasks.Done()
+						continue
+					}
+					if blocked.Load() {
+						activeTasks.Done()
+						continue
+					}
 					recordGlobalErr(err, LogEventSourceFetchFailed, &t.URL)
 					activeTasks.Done()
 					continue
@@ -246,6 +272,9 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 	}()
 
 	wg.Wait()
+	if blocked.Load() {
+		return scraper.ErrBlocked
+	}
 	finalTotal := totalProcessed.Load()
 	cancelReport()
 
