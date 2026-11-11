@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"libri-crawler/internal/fetcher"
+	"log/slog"
 
 	"github.com/antchfx/htmlquery"
 )
@@ -32,6 +33,7 @@ func (s *Scraper) Fetch(ctx context.Context, t Task) ([]byte, error) {
 		if !fetcher.IsBlocked(err) || blocks >= maxBlockRetries {
 			return nil, err
 		}
+		slog.Warn("source_blocked", "url", t.URL, "attempt", blocks, "error", err)
 		if abort := s.Breaker.Blocked(); abort != nil {
 			return nil, abort
 		}

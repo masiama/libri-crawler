@@ -78,8 +78,8 @@ func (r Request) fetch(ctx context.Context) (io.ReadCloser, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		statusErr := &HTTPStatusError{StatusCode: resp.StatusCode, Status: resp.Status}
-		if resp.StatusCode >= http.StatusInternalServerError {
-			// Server header and body tell an origin failure apart from a CDN/anti-bot response.
+		if resp.StatusCode >= http.StatusInternalServerError || IsBlocked(statusErr) {
+			// Server header and body tell an origin failure or a block apart from a CDN/anti-bot response.
 			snippet, _ := io.ReadAll(io.LimitReader(resp.Body, errorBodySnippetSize))
 			statusErr.Server = resp.Header.Get("Server")
 			statusErr.Body = strings.Join(strings.Fields(string(snippet)), " ")
