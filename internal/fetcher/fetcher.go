@@ -19,7 +19,6 @@ const (
 	UserAgent        = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 	maxAttempts      = 4
 	retryDelayBase   = 500 * time.Millisecond
-	rateLimitDelay   = 30 * time.Second
 	serverErrorDelay = 5 * time.Second
 
 	errorBodySnippetSize = 200
@@ -29,6 +28,11 @@ type Request struct {
 	Client *http.Client
 	URL    string
 	Accept string
+}
+
+func isBlocked(err error) bool {
+	statusErr, ok := errors.AsType[*HTTPStatusError](err)
+	return ok && (statusErr.StatusCode == http.StatusForbidden || statusErr.StatusCode == http.StatusTooManyRequests)
 }
 
 // Do executes the request with retries.
@@ -47,6 +51,9 @@ func (r Request) Do(ctx context.Context) (io.ReadCloser, error) {
 		result, err := r.fetch(ctx)
 		if err == nil {
 			return result, nil
+		}
+		if isBlocked(err) {
+			return nil, fmt.Errorf("fetch %s blocked: %w", r.URL, err)
 		}
 		lastErr = err
 	}
@@ -96,8 +103,6 @@ func (r Request) wait(ctx context.Context, attempt int, lastErr error) error {
 
 	if statusErr, ok := errors.AsType[*HTTPStatusError](lastErr); ok {
 		switch {
-		case statusErr.StatusCode == http.StatusTooManyRequests:
-			sleepDuration = rateLimitDelay * time.Duration(attempt)
 		case statusErr.StatusCode >= http.StatusInternalServerError:
 			sleepDuration = serverErrorDelay * time.Duration(attempt)
 		}
