@@ -144,6 +144,23 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 		}
 	}()
 
+	go func() {
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-reportCtx.Done():
+				return
+			case <-ticker.C:
+				if c, _ := r.Redis.GetCancel(ctx, source); c {
+					cancelled.Store(true)
+					abortFetch()
+					return
+				}
+			}
+		}
+	}()
+
 	for range publisherWorkers {
 		wg.Go(func() {
 			for book := range publishChan {
@@ -158,7 +175,7 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 	for range downloaderWorkers {
 		wg.Go(func() {
 			for b := range imagesChan {
-				if blocked.Load() {
+				if fetchCtx.Err() != nil {
 					continue
 				}
 				if err := dl.Download(fetchCtx, b); err != nil {
@@ -174,12 +191,7 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 			defer scraperWg.Done()
 
 			for t := range tasksChan {
-				if blocked.Load() {
-					activeTasks.Done()
-					continue
-				}
-				if c, _ := r.Redis.GetCancel(ctx, source); c {
-					cancelled.Store(true)
+				if fetchCtx.Err() != nil {
 					activeTasks.Done()
 					continue
 				}
@@ -197,7 +209,7 @@ func (r *Runner) Run(ctx context.Context, source scraper.SourceName, crawlID int
 						activeTasks.Done()
 						continue
 					}
-					if blocked.Load() {
+					if fetchCtx.Err() != nil {
 						activeTasks.Done()
 						continue
 					}
