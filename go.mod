@@ -5,8 +5,8 @@ go 1.27.3
 require (
 	github.com/antchfx/htmlquery v1.3.7
 	github.com/joho/godotenv v1.5.1
-	github.com/redis/go-redis/v9 v9.23.0
-	golang.org/x/net v0.62.0
+	github.com/redis/go-redis/v9 v9.24.0
+	golang.org/x/net v0.63.0
 )
 
 require (
